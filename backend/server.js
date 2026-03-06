@@ -1,14 +1,17 @@
 const express = require("express");
 const cors = require("cors");
 
+require("./initDatabase");
+
+const empleadosRoutes = require("./routes/empleadosRoutes");
+
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  res.json({ mensaje: "API Sistema Vacaciones funcionando" });
-});
+// rutas
+app.use("/api", empleadosRoutes);
 
 const PORT = 3000;
 
