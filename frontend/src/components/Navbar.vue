@@ -1,13 +1,3 @@
-<script setup>
-import { ref } from "vue";
-
-const menuAbierto = ref(false);
-
-const toggleMenu = () => {
-  menuAbierto.value = !menuAbierto.value;
-};
-</script>
-
 <template>
   <nav class="navbar">
     <div class="left">
@@ -29,7 +19,15 @@ const toggleMenu = () => {
     </div>
   </nav>
 </template>
+<script setup>
+import { ref } from "vue";
 
+const menuAbierto = ref(false);
+
+const toggleMenu = () => {
+  menuAbierto.value = !menuAbierto.value;
+};
+</script>
 <style scoped>
 .navbar {
   width: 100%;
