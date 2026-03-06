@@ -1,13 +1,23 @@
 <script setup>
-import { onMounted } from "vue";
-import { obtenerAPI } from "./services/api";
-
-onMounted(async () => {
-  const data = await obtenerAPI();
-  console.log(data);
-});
+import Navbar from "./components/Navbar.vue";
 </script>
 
 <template>
-  <h1>Sistema de Vacaciones RH</h1>
+
+<Navbar/>
+
+<div class="container">
+  <router-view />
+</div>
+
 </template>
+
+<style>
+
+.container{
+  padding: 40px;
+  max-width: 1200px;
+  margin: auto;
+}
+
+</style>
