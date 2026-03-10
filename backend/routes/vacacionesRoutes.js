@@ -6,9 +6,9 @@ const vacacionesController = require("../controllers/vacacionesController");
 router.post("/", vacacionesController.registrarVacaciones);
 router.get("/control", vacacionesController.obtenerControlVacaciones);
 router.get("/historial", vacacionesController.obtenerHistorialVacaciones);
-router.put("/acumulados/:id", vacacionesController.editarAcumulados)
-router.put("/:id", vacacionesController.editarVacaciones)
-router.delete("/:id", vacacionesController.eliminarVacaciones)
-
+router.put("/acumulados/:id", vacacionesController.editarAcumulados);
+router.put("/:id", vacacionesController.editarVacaciones);
+router.delete("/:id", vacacionesController.eliminarVacaciones);
+router.get("/empleado/:id", vacacionesController.obtenerHistorialPorEmpleado);
 
 module.exports = router;

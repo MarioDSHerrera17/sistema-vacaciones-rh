@@ -207,19 +207,49 @@ exports.eliminarVacaciones = (req, res) => {
 exports.editarAcumulados = (req, res) => {
   const { id } = req.params;
   const { dias_acumulados } = req.body;
-  db.get(`SELECT * FROM control_vacaciones WHERE id=?`, [id], (err, control) => {
-    if (err) return res.status(500).json(err);
-    if (!control) return res.status(404).json({ mensaje: "No encontrado" });    
+  db.get(
+    `SELECT * FROM control_vacaciones WHERE id=?`,
+    [id],
+    (err, control) => {
+      if (err) return res.status(500).json(err);
+      if (!control) return res.status(404).json({ mensaje: "No encontrado" });
 
-    db.run(
-      `UPDATE control_vacaciones
+      db.run(
+        `UPDATE control_vacaciones
          SET dias_acumulados=?
          WHERE id=?`,
-      [dias_acumulados, id],
-      (err2) => {
-        if (err2) return res.status(500).json(err2);
-        res.json({ mensaje: "Días acumulados actualizados" });
-      },
-    );
+        [dias_acumulados, id],
+        (err2) => {
+          if (err2) return res.status(500).json(err2);
+          res.json({ mensaje: "Días acumulados actualizados" });
+        },
+      );
+    },
+  );
+};
+// ======================================
+// OBTENER HISTORIAL POR EMPLEADO
+// (para fila desplegable)
+// ======================================
+
+exports.obtenerHistorialPorEmpleado = (req, res) => {
+  const { id } = req.params;
+
+  const query = `
+    SELECT 
+      id,
+      fecha_inicio,
+      fecha_fin,
+      dias_tomados,
+      comentario
+    FROM vacaciones
+    WHERE empleado_id = ?
+    ORDER BY fecha_inicio DESC
+  `;
+
+  db.all(query, [id], (err, rows) => {
+    if (err) return res.status(500).json(err);
+
+    res.json(rows);
   });
-}
+};

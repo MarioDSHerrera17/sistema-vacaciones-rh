@@ -1,31 +1,36 @@
 <template>
   <div class="vacaciones">
-    <!-- TOAST -->
-
     <div v-if="toast.visible" :class="['toast', toast.tipo]">
       {{ toast.mensaje }}
     </div>
 
-    <!-- HEADER -->
-
     <div class="header">
-      <h1>Gestión de Vacaciones</h1>
-
-      <button class="btn-agregar" @click="abrirModal">
-        + Registrar vacaciones
-      </button>
+      <h1>Control de Vacaciones</h1>
     </div>
 
-    <!-- ============================= -->
-    <!-- CONTROL DE VACACIONES -->
-    <!-- ============================= -->
+    <!-- FILTROS -->
+    <div class="filtros">
+      <input v-model="filtros.nombre" placeholder="Buscar empleado" />
+
+      <input v-model="filtros.puesto" placeholder="Departamento / Puesto" />
+
+      <select v-model="filtros.dias">
+        <option value="">Días correspondientes</option>
+        <option value="12">12</option>
+        <option value="14">14</option>
+        <option value="16">16</option>
+        <option value="18">18</option>
+        <option value="20">20</option>
+      </select>
+
+      <button class="btn-reset" @click="limpiarFiltros">Borrar filtros</button>
+    </div>
 
     <div class="tabla-container">
-      <h2>Control de Vacaciones</h2>
-
-      <table v-if="controlVacaciones.length">
+      <table v-if="controlFiltrado.length">
         <thead>
           <tr>
+            <th></th>
             <th>Empleado</th>
             <th>Puesto</th>
             <th>Días correspondientes</th>
@@ -37,336 +42,213 @@
         </thead>
 
         <tbody>
-          <tr v-for="c in controlVacaciones" :key="c.id">
-            <td>{{ c.nombre }}</td>
-            <td>{{ c.puesto }}</td>
-            <td>{{ c.dias_correspondientes }}</td>
-            <td>{{ c.dias_usados }}</td>
-            <td class="restantes">
-              {{ c.dias_restantes }}
-            </td>
-            <td>
-              {{ c.dias_acumulados }}
-            </td>
+          <template v-for="c in controlFiltrado" :key="c.id">
+            <tr>
+              <td class="expand">
+                <button class="btn-expand" @click="toggleHistorial(c.id)">
+                  {{ expandido === c.id ? "▾" : "▸" }}
+                </button>
+              </td>
 
-            <td>
-              <button class="btn-editar" @click="editarAcumulados(c)">
-                ✏️
-              </button>
-            </td>
-          </tr>
+              <td>{{ c.nombre }}</td>
+              <td>{{ c.puesto }}</td>
+              <td>{{ c.dias_correspondientes }}</td>
+              <td>{{ c.dias_usados }}</td>
+
+              <td class="restantes">
+                {{ c.dias_restantes }}
+              </td>
+
+              <td>
+                {{ c.dias_acumulados }}
+              </td>
+
+              <td>
+                <button class="btn-editar" @click="editarAcumulados(c)">
+                  ✏️
+                </button>
+              </td>
+            </tr>
+
+            <!-- HISTORIAL -->
+            <tr v-if="expandido === c.id">
+              <td colspan="8" class="historial-container">
+                <table class="tabla-historial">
+                  <thead>
+                    <tr>
+                      <th>Inicio</th>
+                      <th>Fin</th>
+                      <th>Días</th>
+                      <th>Comentario</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    <tr v-for="v in historial[c.id]" :key="v.id">
+                      <td>{{ formatearFecha(v.fecha_inicio) }}</td>
+                      <td>{{ formatearFecha(v.fecha_fin) }}</td>
+                      <td>{{ v.dias_tomados }}</td>
+                      <td>{{ v.comentario }}</td>
+                    </tr>
+
+                    <tr v-if="!historial[c.id] || !historial[c.id].length">
+                      <td colspan="4">No tiene vacaciones registradas</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+          </template>
         </tbody>
       </table>
 
-      <p v-else>No hay control de vacaciones</p>
-    </div>
-
-    <!-- ============================= -->
-    <!-- HISTORIAL -->
-    <!-- ============================= -->
-
-    <div class="tabla-container">
-      <h2>Historial de Vacaciones</h2>
-
-      <table v-if="historialVacaciones.length">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Empleado</th>
-            <th>Puesto</th>
-            <th>Inicio</th>
-            <th>Fin</th>
-            <th>Días</th>
-            <th>Comentario</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          <tr v-for="v in historialVacaciones" :key="v.id">
-            <td>{{ v.id }}</td>
-
-            <td>{{ v.nombre }}</td>
-
-            <td>{{ v.puesto }}</td>
-
-            <td>{{ formatearFecha(v.fecha_inicio) }}</td>
-
-            <td>{{ formatearFecha(v.fecha_fin) }}</td>
-
-            <td class="dias">{{ v.dias_tomados }}</td>
-
-            <td>{{ v.comentario }}</td>
-
-            <td class="acciones">
-              <button class="btn-editar" @click="editarVacacion(v)">✏️</button>
-
-              <button class="btn-eliminar" @click="eliminarVacacion(v.id)">
-                🗑
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <p v-else>No hay vacaciones registradas</p>
-    </div>
-
-    <!-- ============================= -->
-    <!-- MODAL REGISTRAR -->
-    <!-- ============================= -->
-
-    <div v-if="modalVisible" class="modal">
-      <div class="modal-content">
-        <h2>Registrar Vacaciones</h2>
-
-        <select v-model="nueva.empleado_id">
-          <option value="">Seleccionar empleado</option>
-
-          <option v-for="emp in empleados" :key="emp.id" :value="emp.id">
-            {{ emp.nombre }} - {{ emp.puesto }}
-          </option>
-        </select>
-
-        <label>Fecha inicio</label>
-        <input type="date" v-model="nueva.fecha_inicio" />
-
-        <label>Fecha fin</label>
-        <input type="date" v-model="nueva.fecha_fin" />
-
-        <textarea
-          v-model="nueva.comentario"
-          placeholder="Comentario"
-        ></textarea>
-
-        <div class="modal-buttons">
-          <button @click="registrarVacaciones">Registrar</button>
-
-          <button @click="cerrarModal">Cancelar</button>
-        </div>
-      </div>
+      <p v-else>No hay resultados</p>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
-import axios from "axios";
 
-const controlVacaciones = ref([]);
-const historialVacaciones = ref([]);
-const empleados = ref([]);
+import { ref, onMounted, computed } from "vue"
+import axios from "axios"
 
-const modalVisible = ref(false);
+const controlVacaciones = ref([])
+const historial = ref({})
+const expandido = ref(null)
+
+/* FILTROS */
+
+const filtros = ref({
+  nombre:"",
+  puesto:"",
+  dias:""
+})
+
+const controlFiltrado = computed(() => {
+
+  return controlVacaciones.value.filter(c => {
+
+    const nombre =
+      c.nombre.toLowerCase().includes(
+        filtros.value.nombre.toLowerCase()
+      )
+
+    const puesto =
+      c.puesto.toLowerCase().includes(
+        filtros.value.puesto.toLowerCase()
+      )
+
+    const dias =
+      !filtros.value.dias ||
+      c.dias_correspondientes == filtros.value.dias
+
+    return nombre && puesto && dias
+
+  })
+
+})
+
+const limpiarFiltros = () => {
+
+  filtros.value = {
+    nombre:"",
+    puesto:"",
+    dias:""
+  }
+
+}
+
+/* TOAST */
 
 const toast = ref({
-  visible: false,
-  mensaje: "",
-  tipo: "success",
-});
+  visible:false,
+  mensaje:"",
+  tipo:"success"
+})
 
-const nueva = ref({
-  empleado_id: "",
-  fecha_inicio: "",
-  fecha_fin: "",
-  comentario: "",
-});
+const mostrarToast = (mensaje,tipo="success") => {
 
-/* ======================
-TOAST
-====================== */
+  toast.value.mensaje = mensaje
+  toast.value.tipo = tipo
+  toast.value.visible = true
 
-const mostrarToast = (mensaje, tipo = "success") => {
-  toast.value.mensaje = mensaje;
-  toast.value.tipo = tipo;
-  toast.value.visible = true;
+  setTimeout(()=>{
+    toast.value.visible=false
+  },3000)
 
-  setTimeout(() => {
-    toast.value.visible = false;
-  }, 3000);
-};
+}
 
-/* ======================
-CARGAR CONTROL
-====================== */
+/* CONTROL */
 
 const cargarControl = async () => {
-  const res = await axios.get("http://localhost:3000/api/vacaciones/control");
 
-  controlVacaciones.value = res.data;
-};
+  const res = await axios.get(
+    "http://localhost:3000/api/vacaciones/control"
+  )
 
-/* ======================
-CARGAR HISTORIAL
-====================== */
+  controlVacaciones.value = res.data
 
-const cargarHistorial = async () => {
-  const res = await axios.get("http://localhost:3000/api/vacaciones/historial");
+}
 
-  historialVacaciones.value = res.data;
-};
+/* HISTORIAL */
 
-/* ======================
-CARGAR EMPLEADOS
-====================== */
+const toggleHistorial = async (empleadoId) => {
 
-const cargarEmpleados = async () => {
-  const res = await axios.get("http://localhost:3000/api/empleados");
-
-  empleados.value = res.data;
-};
-
-/* ======================
-REGISTRAR VACACIONES
-====================== */
-
-const registrarVacaciones = async () => {
-
-  if(
-    !nueva.value.empleado_id ||
-    !nueva.value.fecha_inicio ||
-    !nueva.value.fecha_fin
-  ){
-    mostrarToast("Todos los campos son obligatorios","error")
+  if(expandido.value === empleadoId){
+    expandido.value = null
     return
   }
 
-  try{
+  expandido.value = empleadoId
 
-    if(editando.value){
+  if(!historial.value[empleadoId]){
 
-      await axios.put(
-        `http://localhost:3000/api/vacaciones/${vacacionEditando.value}`,
-        nueva.value
-      )
-
-      mostrarToast("Vacaciones actualizadas")
-
-    }else{
-
-      const res = await axios.post(
-        "http://localhost:3000/api/vacaciones",
-        nueva.value
-      )
-
-      mostrarToast(res.data.mensaje)
-
-    }
-
-    cerrarModal()
-
-    cargarControl()
-    cargarHistorial()
-
-    editando.value = false
-
-  }catch(error){
-
-    mostrarToast(
-      error.response?.data?.mensaje || "Error",
-      "error"
+    const res = await axios.get(
+      `http://localhost:3000/api/vacaciones/empleado/${empleadoId}`
     )
+
+    historial.value[empleadoId] = res.data
 
   }
 
-};
+}
 
-/* ======================
-MODAL
-====================== */
+/* EDITAR ACUMULADOS */
 
-const abrirModal = () => {
-  modalVisible.value = true;
-};
+const editarAcumulados = async (control) => {
 
-const cerrarModal = () => {
-  modalVisible.value = false;
+  const nuevo = prompt(
+    "Editar días acumulados",
+    control.dias_acumulados
+  )
 
-  nueva.value = {
-    empleado_id: "",
-    fecha_inicio: "",
-    fecha_fin: "",
-    comentario: "",
-  };
-};
+  if(nuevo === null) return
 
-/* ======================
-UTILIDADES
-====================== */
+  await axios.put(
+    `http://localhost:3000/api/vacaciones/acumulados/${control.id}`,
+    { dias_acumulados:nuevo }
+  )
+
+  mostrarToast("Días acumulados actualizados")
+
+  cargarControl()
+
+}
+
+/* FECHA */
 
 const formatearFecha = (fecha) => {
 
-  const [anio, mes, dia] = fecha.split("-")
+  const [anio,mes,dia] = fecha.split("-")
 
   return `${dia}/${mes}/${anio}`
 
 }
 
-/* ======================
-INIT
-====================== */
+onMounted(()=>{
+  cargarControl()
+})
 
-onMounted(() => {
-  cargarControl();
-  cargarHistorial();
-  cargarEmpleados();
-});
-
-const editarAcumulados = async (control) => {
-  const nuevo = prompt("Editar días acumulados", control.dias_acumulados);
-
-  if (nuevo === null) return;
-
-  await axios.put(
-    `http://localhost:3000/api/vacaciones/acumulados/${control.id}`,
-    { dias_acumulados: nuevo },
-  );
-
-  mostrarToast("Días acumulados actualizados");
-
-  cargarControl();
-};
-
-const eliminarVacacion = async (id) => {
-
-  const confirmar = confirm("¿Eliminar estas vacaciones?")
-
-  if(!confirmar) return
-
-  try{
-
-    await axios.delete(
-      `http://localhost:3000/api/vacaciones/${id}`
-    )
-
-    mostrarToast("Vacaciones eliminadas")
-
-    cargarControl()
-    cargarHistorial()
-
-  }catch{
-
-    mostrarToast("Error al eliminar","error")
-
-  }
-
-}
-const editando = ref(false)
-const vacacionEditando = ref(null)
-const editarVacacion = (v) => {
-
-  editando.value = true
-  vacacionEditando.value = v.id
-
-  nueva.value = {
-    empleado_id: v.empleado_id,
-    fecha_inicio: v.fecha_inicio,
-    fecha_fin: v.fecha_fin,
-    comentario: v.comentario
-  }
-
-  modalVisible.value = true
-}
 </script>
 
 <style scoped src="../css/vacaciones.css"></style>

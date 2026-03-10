@@ -16,6 +16,7 @@
     <div :class="['menu', menuAbierto ? 'activo' : '']">
       <router-link to="/empleados">Empleados</router-link>
       <router-link to="/vacaciones">Vacaciones</router-link>
+      <router-link to="/historial">Historial</router-link>
     </div>
   </nav>
 </template>
