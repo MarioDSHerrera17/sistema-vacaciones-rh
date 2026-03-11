@@ -1,12 +1,13 @@
 const db = require("../db");
 const { calcularDias } = require("../utils/fechas.utils");
 
+
 // ======================================
 // OBTENER CONTROL DE VACACIONES
-// (tabla superior)
 // ======================================
 
 exports.obtenerControlVacaciones = (req, res) => {
+
   const anioActual = new Date().getFullYear();
 
   const query = `
@@ -14,10 +15,11 @@ exports.obtenerControlVacaciones = (req, res) => {
       e.id,
       e.nombre,
       e.puesto,
+      cv.id as control_id,
       cv.dias_correspondientes,
       cv.dias_usados,
-      cv.dias_restantes,
-      cv.dias_acumulados
+      cv.dias_acumulados,
+      (cv.dias_correspondientes + cv.dias_acumulados - cv.dias_usados) AS dias_restantes
     FROM control_vacaciones cv
     JOIN empleados e ON e.id = cv.empleado_id
     WHERE cv.anio = ?
@@ -25,21 +27,27 @@ exports.obtenerControlVacaciones = (req, res) => {
   `;
 
   db.all(query, [anioActual], (err, rows) => {
+
     if (err) return res.status(500).json(err);
 
     res.json(rows);
+
   });
+
 };
+
+
 
 // ======================================
 // OBTENER HISTORIAL DE VACACIONES
-// (tabla inferior)
 // ======================================
 
 exports.obtenerHistorialVacaciones = (req, res) => {
+
   const query = `
     SELECT 
       v.id,
+      v.empleado_id,
       e.nombre,
       e.puesto,
       v.fecha_inicio,
@@ -52,17 +60,23 @@ exports.obtenerHistorialVacaciones = (req, res) => {
   `;
 
   db.all(query, [], (err, rows) => {
+
     if (err) return res.status(500).json(err);
 
     res.json(rows);
+
   });
+
 };
+
+
 
 // ======================================
 // REGISTRAR VACACIONES
 // ======================================
 
 exports.registrarVacaciones = (req, res) => {
+
   const { empleado_id, fecha_inicio, fecha_fin, comentario } = req.body;
 
   const dias = calcularDias(fecha_inicio, fecha_fin);
@@ -70,25 +84,30 @@ exports.registrarVacaciones = (req, res) => {
   const anioActual = new Date().getFullYear();
 
   db.get(
-    `SELECT * FROM control_vacaciones 
+    `SELECT * FROM control_vacaciones
      WHERE empleado_id = ? AND anio = ?`,
     [empleado_id, anioActual],
     (err, control) => {
+
       if (err) return res.status(500).json(err);
 
       if (!control) {
-        return res.status(404).json({
-          mensaje: "No existe control de vacaciones",
-        });
+        return res.status(404).json({ mensaje: "No existe control de vacaciones" });
       }
 
-      if (control.dias_restantes < dias) {
+      const disponibles =
+        control.dias_correspondientes +
+        control.dias_acumulados -
+        control.dias_usados;
+
+      if (disponibles < dias) {
         return res.status(400).json({
-          mensaje: "No tiene suficientes días",
+          mensaje: "No tiene suficientes días disponibles"
         });
       }
 
-      // VALIDAR TRASLAPE
+      // validar traslape
+
       db.get(
         `SELECT id FROM vacaciones
          WHERE empleado_id = ?
@@ -96,143 +115,232 @@ exports.registrarVacaciones = (req, res) => {
          AND fecha_fin >= ?`,
         [empleado_id, fecha_fin, fecha_inicio],
         (errOverlap, overlap) => {
+
           if (errOverlap) return res.status(500).json(errOverlap);
 
           if (overlap) {
             return res.status(400).json({
-              mensaje: "Ya existen vacaciones en ese periodo",
+              mensaje: "Ya existen vacaciones en ese periodo"
             });
           }
 
-          // INSERT SOLO SI NO HAY TRASLAPE
           db.run(
             `INSERT INTO vacaciones
             (empleado_id, fecha_inicio, fecha_fin, dias_tomados, comentario)
             VALUES (?, ?, ?, ?, ?)`,
-            [empleado_id, fecha_inicio, fecha_fin, dias, comentario],
+            [
+              empleado_id,
+              fecha_inicio,
+              fecha_fin,
+              dias,
+              comentario
+            ],
             function (err2) {
-              if (err2) return res.status(500).json(err2);
 
-              const nuevosUsados = control.dias_usados + dias;
-              const nuevosRestantes = control.dias_restantes - dias;
+              if (err2) return res.status(500).json(err2);
 
               db.run(
                 `UPDATE control_vacaciones
-                 SET dias_usados=?, dias_restantes=?
-                 WHERE id=?`,
-                [nuevosUsados, nuevosRestantes, control.id],
+                 SET dias_usados = dias_usados + ?
+                 WHERE id = ?`,
+                [
+                  dias,
+                  control.id
+                ],
                 (err3) => {
+
                   if (err3) return res.status(500).json(err3);
 
                   res.json({
                     mensaje: "Vacaciones registradas",
-                    dias_tomados: dias,
+                    dias_tomados: dias
                   });
-                },
+
+                }
               );
-            },
+
+            }
           );
-        },
+
+        }
       );
-    },
+
+    }
   );
+
 };
-//Editar vacaciones
+
+
+
+// ======================================
+// EDITAR VACACIONES
+// ======================================
+
 exports.editarVacaciones = (req, res) => {
+
   const { id } = req.params;
   const { fecha_inicio, fecha_fin, comentario } = req.body;
 
   const diasNuevos = calcularDias(fecha_inicio, fecha_fin);
 
   db.get(`SELECT * FROM vacaciones WHERE id=?`, [id], (err, vac) => {
+
     if (err) return res.status(500).json(err);
-    if (!vac) return res.status(404).json({ mensaje: "No encontrada" });
 
-    const diferencia = diasNuevos - vac.dias_tomados;
+    if (!vac) return res.status(404).json({ mensaje: "Vacación no encontrada" });
 
-    db.run(
-      `UPDATE vacaciones
-         SET fecha_inicio=?, fecha_fin=?, dias_tomados=?, comentario=?
-         WHERE id=?`,
-      [fecha_inicio, fecha_fin, diasNuevos, comentario, id],
-      (err2) => {
+    const anioActual = new Date().getFullYear();
+
+    db.get(
+      `SELECT * FROM control_vacaciones WHERE empleado_id=? AND anio=?`,
+      [vac.empleado_id, anioActual],
+      (err2, control) => {
+
         if (err2) return res.status(500).json(err2);
 
+        const disponibles =
+          control.dias_correspondientes +
+          control.dias_acumulados -
+          control.dias_usados +
+          vac.dias_tomados;
+
+        if (disponibles < diasNuevos) {
+          return res.status(400).json({
+            mensaje: "No hay suficientes días para editar"
+          });
+        }
+
         db.run(
-          `UPDATE control_vacaciones
-             SET dias_usados = dias_usados + ?,
-                 dias_restantes = dias_restantes - ?
-             WHERE empleado_id=?`,
-          [diferencia, diferencia, vac.empleado_id],
+          `UPDATE vacaciones
+           SET fecha_inicio=?, fecha_fin=?, dias_tomados=?, comentario=?
+           WHERE id=?`,
+          [
+            fecha_inicio,
+            fecha_fin,
+            diasNuevos,
+            comentario,
+            id
+          ],
+          (err3) => {
+
+            if (err3) return res.status(500).json(err3);
+
+            db.run(
+              `UPDATE control_vacaciones
+               SET dias_usados = dias_usados - ? + ?
+               WHERE id=?`,
+              [
+                vac.dias_tomados,
+                diasNuevos,
+                control.id
+              ]
+            );
+
+            res.json({ mensaje: "Vacaciones actualizadas" });
+
+          }
         );
 
-        res.json({ mensaje: "Vacaciones actualizadas" });
-      },
+      }
     );
+
   });
+
 };
 
-//Eliminar vacaciones
+
+
+// ======================================
+// ELIMINAR VACACIONES
+// ======================================
+
 exports.eliminarVacaciones = (req, res) => {
+
   const { id } = req.params;
 
   const hoy = new Date().toISOString().split("T")[0];
 
   db.get(`SELECT * FROM vacaciones WHERE id=?`, [id], (err, vac) => {
+
     if (err) return res.status(500).json(err);
-    if (!vac) return res.status(404).json({ mensaje: "No encontrada" });
+
+    if (!vac) return res.status(404).json({ mensaje: "Vacación no encontrada" });
 
     if (vac.fecha_inicio <= hoy) {
       return res.status(400).json({
-        mensaje: "No se pueden eliminar vacaciones ya iniciadas",
+        mensaje: "No se pueden eliminar vacaciones ya iniciadas"
       });
     }
 
-    db.run(`DELETE FROM vacaciones WHERE id=?`, [id], (err2) => {
-      if (err2) return res.status(500).json(err2);
+    const anioActual = new Date().getFullYear();
 
-      db.run(
-        `UPDATE control_vacaciones
-             SET dias_usados = dias_usados - ?,
-                 dias_restantes = dias_restantes + ?
-             WHERE empleado_id=?`,
-        [vac.dias_tomados, vac.dias_tomados, vac.empleado_id],
-      );
+    db.get(
+      `SELECT * FROM control_vacaciones WHERE empleado_id=? AND anio=?`,
+      [vac.empleado_id, anioActual],
+      (err2, control) => {
 
-      res.json({ mensaje: "Vacaciones eliminadas" });
-    });
+        if (err2) return res.status(500).json(err2);
+
+        db.run(`DELETE FROM vacaciones WHERE id=?`, [id], (err3) => {
+
+          if (err3) return res.status(500).json(err3);
+
+          db.run(
+            `UPDATE control_vacaciones
+             SET dias_usados = dias_usados - ?
+             WHERE id=?`,
+            [
+              vac.dias_tomados,
+              control.id
+            ]
+          );
+
+          res.json({ mensaje: "Vacaciones eliminadas" });
+
+        });
+
+      }
+    );
+
   });
+
 };
-//Editar acumulados
+
+
+
+// ======================================
+// EDITAR DIAS ACUMULADOS
+// ======================================
+
 exports.editarAcumulados = (req, res) => {
+
   const { id } = req.params;
   const { dias_acumulados } = req.body;
-  db.get(
-    `SELECT * FROM control_vacaciones WHERE id=?`,
-    [id],
-    (err, control) => {
-      if (err) return res.status(500).json(err);
-      if (!control) return res.status(404).json({ mensaje: "No encontrado" });
 
-      db.run(
-        `UPDATE control_vacaciones
-         SET dias_acumulados=?
-         WHERE id=?`,
-        [dias_acumulados, id],
-        (err2) => {
-          if (err2) return res.status(500).json(err2);
-          res.json({ mensaje: "Días acumulados actualizados" });
-        },
-      );
-    },
+  db.run(
+    `UPDATE control_vacaciones
+     SET dias_acumulados=?
+     WHERE id=?`,
+    [dias_acumulados, id],
+    (err) => {
+
+      if (err) return res.status(500).json(err);
+
+      res.json({ mensaje: "Días acumulados actualizados" });
+
+    }
   );
+
 };
+
+
+
 // ======================================
-// OBTENER HISTORIAL POR EMPLEADO
-// (para fila desplegable)
+// HISTORIAL POR EMPLEADO
 // ======================================
 
 exports.obtenerHistorialPorEmpleado = (req, res) => {
+
   const { id } = req.params;
 
   const query = `
@@ -248,8 +356,11 @@ exports.obtenerHistorialPorEmpleado = (req, res) => {
   `;
 
   db.all(query, [id], (err, rows) => {
+
     if (err) return res.status(500).json(err);
 
     res.json(rows);
+
   });
+
 };

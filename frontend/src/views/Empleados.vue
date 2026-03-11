@@ -109,7 +109,7 @@
 
         <input v-model="nuevo.departamento" placeholder="Departamento" />
 
-        <input v-model="nuevo.correo" placeholder="Correo" />
+        <input type="email" v-model="nuevo.correo" placeholder="Correo" />
 
         <div class="modal-buttons">
           <button @click="crearEmpleado">Crear</button>
@@ -182,7 +182,6 @@ const empleadoEdit = ref({
   correo: "",
 });
 
-
 // ==========================
 // CARGAR EMPLEADOS
 // ==========================
@@ -195,10 +194,9 @@ const cargarEmpleados = async () => {
   departamentos.value = [...new Set(res.data.map((e) => e.departamento))];
 
   anios.value = [
-    ...new Set(res.data.map((e) => new Date(e.fecha_ingreso).getFullYear())),
+    ...new Set(res.data.map((e) => e.fecha_ingreso.split("-")[0])),
   ];
 };
-
 
 // ==========================
 // FILTROS
@@ -206,7 +204,10 @@ const cargarEmpleados = async () => {
 
 const empleadosFiltrados = computed(() => {
   return empleados.value.filter((emp) => {
-    const fecha = new Date(emp.fecha_ingreso);
+    const partes = emp.fecha_ingreso.split("-");
+
+    const anio = parseInt(partes[0]);
+    const mes = parseInt(partes[1]);
 
     const coincideBusqueda = emp.nombre
       .toLowerCase()
@@ -216,28 +217,21 @@ const empleadosFiltrados = computed(() => {
       !filtroDepartamento.value ||
       emp.departamento === filtroDepartamento.value;
 
-    const coincideMes =
-      !filtroMes.value || fecha.getMonth() + 1 == filtroMes.value;
+    const coincideMes = !filtroMes.value || mes == filtroMes.value;
 
-    const coincideAnio =
-      !filtroAnio.value || fecha.getFullYear() == filtroAnio.value;
+    const coincideAnio = !filtroAnio.value || anio == filtroAnio.value;
 
     return (
-      coincideBusqueda &&
-      coincideDepartamento &&
-      coincideMes &&
-      coincideAnio
+      coincideBusqueda && coincideDepartamento && coincideMes && coincideAnio
     );
   });
 });
-
 
 // ==========================
 // TOAST
 // ==========================
 
 const mostrarToast = (mensaje, tipo = "success") => {
-
   toast.value.mensaje = mensaje;
   toast.value.tipo = tipo;
   toast.value.visible = true;
@@ -245,16 +239,13 @@ const mostrarToast = (mensaje, tipo = "success") => {
   setTimeout(() => {
     toast.value.visible = false;
   }, 3000);
-
 };
-
 
 // ==========================
 // CREAR EMPLEADO
 // ==========================
 
 const crearEmpleado = async () => {
-
   if (
     !nuevo.value.nombre ||
     !nuevo.value.fecha_ingreso ||
@@ -267,7 +258,6 @@ const crearEmpleado = async () => {
   }
 
   try {
-
     await axios.post("http://localhost:3000/api/empleados", nuevo.value);
 
     mostrarToast("Empleado creado correctamente");
@@ -275,17 +265,12 @@ const crearEmpleado = async () => {
     cerrarModal();
 
     cargarEmpleados();
-
   } catch (error) {
-
     console.error("Error creando empleado", error);
 
     mostrarToast("Error al crear empleado", "error");
-
   }
-
 };
-
 
 // ==========================
 // MODAL CREAR
@@ -296,7 +281,6 @@ const abrirModal = () => {
 };
 
 const cerrarModal = () => {
-
   modalVisible.value = false;
 
   nuevo.value = {
@@ -306,35 +290,29 @@ const cerrarModal = () => {
     departamento: "",
     correo: "",
   };
-
 };
-
 
 // ==========================
 // MODAL EDITAR
 // ==========================
 
 const editarEmpleado = (emp) => {
-
   empleadoEdit.value = {
-    ...emp
+    ...emp,
   };
 
   modalEditar.value = true;
-
 };
 
 const cerrarModalEditar = () => {
   modalEditar.value = false;
 };
 
-
 // ==========================
 // ACTUALIZAR EMPLEADO
 // ==========================
 
 const actualizarEmpleado = async () => {
-
   const e = empleadoEdit.value;
 
   if (
@@ -349,7 +327,6 @@ const actualizarEmpleado = async () => {
   }
 
   try {
-
     await axios.put(`http://localhost:3000/api/empleados/${e.id}`, {
       nombre: e.nombre,
       fecha_ingreso: e.fecha_ingreso,
@@ -363,80 +340,61 @@ const actualizarEmpleado = async () => {
     cerrarModalEditar();
 
     cargarEmpleados();
-
   } catch (error) {
-
     console.error(error);
 
     mostrarToast("Error al actualizar", "error");
-
   }
-
 };
-
 
 // ==========================
 // ACTIVAR / DESACTIVAR
 // ==========================
 
 const desactivarEmpleado = async (id) => {
-
   if (!confirm("¿Deseas desactivar este empleado?")) return;
 
   try {
-
     await axios.put(`http://localhost:3000/api/empleados/desactivar/${id}`);
 
     mostrarToast("Empleado desactivado");
 
     cargarEmpleados();
-
   } catch {
-
     mostrarToast("Error al desactivar", "error");
-
   }
-
 };
 
 const activarEmpleado = async (id) => {
-
   if (!confirm("¿Deseas activar este empleado?")) return;
 
   try {
-
     await axios.put(`http://localhost:3000/api/empleados/activar/${id}`);
 
     mostrarToast("Empleado activado");
 
     cargarEmpleados();
-
   } catch {
-
     mostrarToast("Error al activar", "error");
-
   }
-
 };
-
 
 // ==========================
 // UTILIDADES
 // ==========================
 
 const limpiarFiltros = () => {
-
   search.value = "";
   filtroDepartamento.value = "";
   filtroMes.value = "";
   filtroAnio.value = "";
-
 };
 
 const formatearFecha = (fecha) => {
-  return new Date(fecha).toLocaleDateString();
-};
+  if (!fecha) return "";
 
+  return fecha.split("T")[0];
+};
 
 // ==========================
 // INIT

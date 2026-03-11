@@ -229,4 +229,4 @@ onMounted(() => {
 });
 </script>
 
-<style scoped src="../css/vacaciones.css"></style>
+<style scoped src="../css/vacaciones-historial.css"></style>
