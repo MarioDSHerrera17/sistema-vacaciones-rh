@@ -103,11 +103,15 @@
 
         <input v-model="nuevo.nombre" placeholder="Nombre" />
 
-        <input type="date" v-model="nuevo.fecha_ingreso" />
+        <input type="date" v-model="nuevo.fecha_ingreso" max="9999-12-31" />
 
         <input v-model="nuevo.puesto" placeholder="Puesto" />
 
-        <input v-model="nuevo.departamento" placeholder="Departamento" />
+        <input
+          v-model="nuevo.departamento"
+          placeholder="Departamento"
+          @input="nuevo.departamento = nuevo.departamento.toUpperCase()"
+        />
 
         <input type="email" v-model="nuevo.correo" placeholder="Correo" />
 
@@ -124,11 +128,21 @@
 
         <input v-model="empleadoEdit.nombre" placeholder="Nombre" />
 
-        <input type="date" v-model="empleadoEdit.fecha_ingreso" />
+        <input
+          type="date"
+          v-model="empleadoEdit.fecha_ingreso"
+          max="9999-12-31"
+        />
 
         <input v-model="empleadoEdit.puesto" placeholder="Puesto" />
 
-        <input v-model="empleadoEdit.departamento" placeholder="Departamento" />
+        <input
+          v-model="empleadoEdit.departamento"
+          placeholder="Departamento"
+          @input="
+            empleadoEdit.departamento = empleadoEdit.departamento.toUpperCase()
+          "
+        />
 
         <input v-model="empleadoEdit.correo" placeholder="Correo" />
 
@@ -140,12 +154,39 @@
       </div>
     </div>
   </div>
+  <ConfirmDialog
+    :visible="confirmVisible"
+    :titulo="confirmTitulo"
+    :mensaje="confirmMensaje"
+    @confirmar="confirmarAccion"
+    @cancelar="cancelarAccion"
+  />
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import axios from "axios";
+import ConfirmDialog from "../components/ConfirmDialog.vue";
+const confirmVisible = ref(false);
 
+const confirmTitulo = ref("");
+const confirmMensaje = ref("");
+
+let accionConfirmada = null;
+const abrirConfirmacion = (titulo, mensaje, accion) => {
+  confirmTitulo.value = titulo;
+  confirmMensaje.value = mensaje;
+  accionConfirmada = accion;
+  confirmVisible.value = true;
+};
+const confirmarAccion = () => {
+  if (accionConfirmada) accionConfirmada();
+  confirmVisible.value = false;
+};
+
+const cancelarAccion = () => {
+  confirmVisible.value = false;
+};
 const empleados = ref([]);
 
 const search = ref("");
@@ -257,6 +298,13 @@ const crearEmpleado = async () => {
     return;
   }
 
+  const hoy = new Date();
+  const fechaIngreso = new Date(nuevo.value.fecha_ingreso);
+
+  if (fechaIngreso > hoy) {
+    mostrarToast("La fecha de ingreso no puede ser futura", "error");
+    return;
+  }
   try {
     await axios.post("http://localhost:3000/api/empleados", nuevo.value);
 
@@ -266,9 +314,10 @@ const crearEmpleado = async () => {
 
     cargarEmpleados();
   } catch (error) {
-    console.error("Error creando empleado", error);
+    const mensaje =
+      error.response?.data?.mensaje || "Error al crear el empleado";
 
-    mostrarToast("Error al crear empleado", "error");
+    mostrarToast(mensaje, "error");
   }
 };
 
@@ -326,57 +375,69 @@ const actualizarEmpleado = async () => {
     return;
   }
 
-  try {
-    await axios.put(`http://localhost:3000/api/empleados/${e.id}`, {
-      nombre: e.nombre,
-      fecha_ingreso: e.fecha_ingreso,
-      puesto: e.puesto,
-      departamento: e.departamento,
-      correo: e.correo,
-    });
+  abrirConfirmacion(
+    "Actualizar empleado",
+    "¿Deseas guardar los cambios de este empleado?",
+    async () => {
+      try {
+        await axios.put(`http://localhost:3000/api/empleados/${e.id}`, {
+          nombre: e.nombre,
+          fecha_ingreso: e.fecha_ingreso,
+          puesto: e.puesto,
+          departamento: e.departamento,
+          correo: e.correo,
+        });
 
-    mostrarToast("Empleado actualizado correctamente");
+        mostrarToast("Empleado actualizado correctamente");
 
-    cerrarModalEditar();
+        cerrarModalEditar();
 
-    cargarEmpleados();
-  } catch (error) {
-    console.error(error);
-
-    mostrarToast("Error al actualizar", "error");
-  }
+        cargarEmpleados();
+      } catch {
+        mostrarToast("Error al actualizar", "error");
+      }
+    },
+  );
 };
 
 // ==========================
 // ACTIVAR / DESACTIVAR
 // ==========================
 
-const desactivarEmpleado = async (id) => {
-  if (!confirm("¿Deseas desactivar este empleado?")) return;
+const desactivarEmpleado = (id) => {
+  abrirConfirmacion(
+    "Desactivar empleado",
+    "¿Seguro que deseas desactivar este empleado?",
+    async () => {
+      try {
+        await axios.put(`http://localhost:3000/api/empleados/desactivar/${id}`);
 
-  try {
-    await axios.put(`http://localhost:3000/api/empleados/desactivar/${id}`);
+        mostrarToast("Empleado desactivado");
 
-    mostrarToast("Empleado desactivado");
-
-    cargarEmpleados();
-  } catch {
-    mostrarToast("Error al desactivar", "error");
-  }
+        cargarEmpleados();
+      } catch {
+        mostrarToast("Error al desactivar", "error");
+      }
+    },
+  );
 };
 
-const activarEmpleado = async (id) => {
-  if (!confirm("¿Deseas activar este empleado?")) return;
+const activarEmpleado = (id) => {
+  abrirConfirmacion(
+    "Activar empleado",
+    "¿Deseas activar nuevamente este empleado?",
+    async () => {
+      try {
+        await axios.put(`http://localhost:3000/api/empleados/activar/${id}`);
 
-  try {
-    await axios.put(`http://localhost:3000/api/empleados/activar/${id}`);
+        mostrarToast("Empleado activado");
 
-    mostrarToast("Empleado activado");
-
-    cargarEmpleados();
-  } catch {
-    mostrarToast("Error al activar", "error");
-  }
+        cargarEmpleados();
+      } catch {
+        mostrarToast("Error al activar", "error");
+      }
+    },
+  );
 };
 
 // ==========================

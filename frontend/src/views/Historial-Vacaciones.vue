@@ -11,9 +11,22 @@
         + Registrar vacaciones
       </button>
     </div>
+    <!-- FILTROS -->
+
+    <div class="filtros">
+      <input v-model="filtros.nombre" placeholder="Buscar empleado" />
+
+      <input v-model="filtros.puesto" placeholder="Buscar puesto" />
+
+      <input type="date" v-model="filtros.fecha_inicio" />
+
+      <input type="date" v-model="filtros.fecha_fin" />
+
+      <button class="btn-reset" @click="limpiarFiltros">Borrar filtros</button>
+    </div>
 
     <div class="tabla-container">
-      <table v-if="historialVacaciones.length">
+      <table v-if="historialFiltrado.length">
         <thead>
           <tr>
             <th>ID</th>
@@ -28,7 +41,7 @@
         </thead>
 
         <tbody>
-          <tr v-for="v in historialVacaciones" :key="v.id">
+          <tr v-for="v in historialFiltrado" :key="v.id">
             <td>{{ v.id }}</td>
             <td>{{ v.nombre }}</td>
             <td>{{ v.puesto }}</td>
@@ -79,11 +92,6 @@
         <textarea v-model="nueva.comentario" placeholder="Comentario">
         </textarea>
 
-        <label>
-          <input type="checkbox" v-model="nueva.usar_acumulados" />
-          Usar días acumulados
-        </label>
-
         <div class="modal-buttons">
           <button @click="registrarVacaciones">Registrar</button>
 
@@ -97,7 +105,35 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import axios from "axios";
+import { computed } from "vue"
 
+const historialFiltrado = computed(()=>{
+
+  return historialVacaciones.value.filter(v=>{
+
+    const nombre =
+      v.nombre.toLowerCase().includes(
+        filtros.value.nombre.toLowerCase()
+      )
+
+    const puesto =
+      v.puesto.toLowerCase().includes(
+        filtros.value.puesto.toLowerCase()
+      )
+
+    const inicio =
+      !filtros.value.fecha_inicio ||
+      v.fecha_inicio >= filtros.value.fecha_inicio
+
+    const fin =
+      !filtros.value.fecha_fin ||
+      v.fecha_fin <= filtros.value.fecha_fin
+
+    return nombre && puesto && inicio && fin
+
+  })
+
+})
 const historialVacaciones = ref([]);
 const empleados = ref([]);
 
@@ -105,6 +141,13 @@ const modalVisible = ref(false);
 
 const editando = ref(false);
 const vacacionEditando = ref(null);
+
+const filtros = ref({
+  nombre:"",
+  puesto:"",
+  fecha_inicio:"",
+  fecha_fin:""
+})
 
 const toast = ref({
   visible: false,
@@ -117,8 +160,18 @@ const nueva = ref({
   fecha_inicio: "",
   fecha_fin: "",
   comentario: "",
-  usar_acumulados: false,
 });
+
+const limpiarFiltros = ()=>{
+
+  filtros.value = {
+    nombre:"",
+    puesto:"",
+    fecha_inicio:"",
+    fecha_fin:""
+  }
+
+}
 
 const mostrarToast = (mensaje, tipo = "success") => {
   toast.value.mensaje = mensaje;
@@ -214,7 +267,6 @@ const cerrarModal = () => {
     fecha_inicio: "",
     fecha_fin: "",
     comentario: "",
-    usar_acumulados: false,
   };
 };
 

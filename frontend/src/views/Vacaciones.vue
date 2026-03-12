@@ -12,7 +12,7 @@
     <div class="filtros">
       <input v-model="filtros.nombre" placeholder="Buscar empleado" />
 
-      <input v-model="filtros.puesto" placeholder="Departamento / Puesto" />
+      <input v-model="filtros.puesto" placeholder="Puesto" />
 
       <select v-model="filtros.dias">
         <option value="">Días correspondientes</option>
@@ -21,6 +21,11 @@
         <option value="16">16</option>
         <option value="18">18</option>
         <option value="20">20</option>
+        <option value="22">22</option>
+        <option value="24">24</option>
+        <option value="26">26</option>
+        <option value="28">28</option>
+        <option value="30">30</option>
       </select>
 
       <button class="btn-reset" @click="limpiarFiltros">Borrar filtros</button>
