@@ -84,10 +84,10 @@
         </select>
 
         <label>Fecha inicio</label>
-        <input type="date" v-model="nueva.fecha_inicio" />
+        <input type="date" v-model="nueva.fecha_inicio" :disabled="esVacacionPasada" />
 
         <label>Fecha fin</label>
-        <input type="date" v-model="nueva.fecha_fin" />
+        <input type="date" v-model="nueva.fecha_fin" :disabled="esVacacionPasada" />
 
         <textarea v-model="nueva.comentario" placeholder="Comentario">
         </textarea>
@@ -105,35 +105,28 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import axios from "axios";
-import { computed } from "vue"
+import { computed } from "vue";
 
-const historialFiltrado = computed(()=>{
+const historialFiltrado = computed(() => {
+  return historialVacaciones.value.filter((v) => {
+    const nombre = v.nombre
+      .toLowerCase()
+      .includes(filtros.value.nombre.toLowerCase());
 
-  return historialVacaciones.value.filter(v=>{
-
-    const nombre =
-      v.nombre.toLowerCase().includes(
-        filtros.value.nombre.toLowerCase()
-      )
-
-    const puesto =
-      v.puesto.toLowerCase().includes(
-        filtros.value.puesto.toLowerCase()
-      )
+    const puesto = v.puesto
+      .toLowerCase()
+      .includes(filtros.value.puesto.toLowerCase());
 
     const inicio =
       !filtros.value.fecha_inicio ||
-      v.fecha_inicio >= filtros.value.fecha_inicio
+      v.fecha_inicio >= filtros.value.fecha_inicio;
 
     const fin =
-      !filtros.value.fecha_fin ||
-      v.fecha_fin <= filtros.value.fecha_fin
+      !filtros.value.fecha_fin || v.fecha_fin <= filtros.value.fecha_fin;
 
-    return nombre && puesto && inicio && fin
-
-  })
-
-})
+    return nombre && puesto && inicio && fin;
+  });
+});
 const historialVacaciones = ref([]);
 const empleados = ref([]);
 
@@ -143,11 +136,11 @@ const editando = ref(false);
 const vacacionEditando = ref(null);
 
 const filtros = ref({
-  nombre:"",
-  puesto:"",
-  fecha_inicio:"",
-  fecha_fin:""
-})
+  nombre: "",
+  puesto: "",
+  fecha_inicio: "",
+  fecha_fin: "",
+});
 
 const toast = ref({
   visible: false,
@@ -162,16 +155,22 @@ const nueva = ref({
   comentario: "",
 });
 
-const limpiarFiltros = ()=>{
-
+const limpiarFiltros = () => {
   filtros.value = {
-    nombre:"",
-    puesto:"",
-    fecha_inicio:"",
-    fecha_fin:""
-  }
+    nombre: "",
+    puesto: "",
+    fecha_inicio: "",
+    fecha_fin: "",
+  };
+};
 
-}
+const esVacacionPasada = computed(() => {
+  if (!editando.value) return false;
+
+  const hoy = new Date().toISOString().split("T")[0];
+
+  return nueva.value.fecha_fin < hoy;
+});
 
 const mostrarToast = (mensaje, tipo = "success") => {
   toast.value.mensaje = mensaje;
@@ -184,7 +183,7 @@ const mostrarToast = (mensaje, tipo = "success") => {
 };
 
 const cargarHistorial = async () => {
-  const res = await axios.get("http://localhost:3000/api/vacaciones/historial");
+  const res = await axios.get("http://localhost:3000/api/historial/historial");
 
   historialVacaciones.value = res.data;
 };
@@ -192,7 +191,7 @@ const cargarHistorial = async () => {
 const cargarEmpleados = async () => {
   const res = await axios.get("http://localhost:3000/api/empleados");
 
-  empleados.value = res.data;
+  empleados.value = res.data.filter((e) => e.estatus === "activo");
 };
 
 const registrarVacaciones = async () => {
@@ -208,14 +207,14 @@ const registrarVacaciones = async () => {
   try {
     if (editando.value) {
       await axios.put(
-        `http://localhost:3000/api/vacaciones/${vacacionEditando.value}`,
+        `http://localhost:3000/api/historial/${vacacionEditando.value}`,
         nueva.value,
       );
 
       mostrarToast("Vacaciones actualizadas");
     } else {
       const res = await axios.post(
-        "http://localhost:3000/api/vacaciones",
+        "http://localhost:3000/api/historial",
         nueva.value,
       );
 
@@ -236,11 +235,19 @@ const eliminarVacacion = async (id) => {
 
   if (!confirmar) return;
 
-  await axios.delete(`http://localhost:3000/api/vacaciones/${id}`);
+  try {
+    await axios.delete(`http://localhost:3000/api/historial/${id}`);
 
-  mostrarToast("Vacaciones eliminadas");
+    mostrarToast("Vacaciones eliminadas");
 
-  cargarHistorial();
+    cargarHistorial();
+  } catch (error) {
+    mostrarToast(
+      error.response?.data?.mensaje ||
+        "No se pueden eliminar vacaciones pasadas",
+      "error",
+    );
+  }
 };
 
 const editarVacacion = (v) => {

@@ -223,41 +223,48 @@ const toggleHistorial = async (empleadoId) => {
 /* MODAL */
 
 const modal = ref({
-  visible:false,
-  control_id:null,
-  nombre:"",
-  dias:0
-})
+  visible: false,
+  control_id: null,
+  nombre: "",
+  dias: 0,
+});
 
 const editarAcumulados = (control) => {
-
-  modal.value.visible = true
-  modal.value.control_id = control.control_id
-  modal.value.nombre = control.nombre
-  modal.value.dias = control.dias_acumulados
-
-}
+  modal.value.visible = true;
+  modal.value.control_id = control.control_id;
+  modal.value.nombre = control.nombre;
+  modal.value.dias = control.dias_acumulados;
+};
 
 const cerrarModal = () => {
-
-  modal.value.visible = false
-
-}
+  modal.value.visible = false;
+};
 
 const guardarAcumulados = async () => {
+  try {
+    const res = await axios.put(
+      `http://localhost:3000/api/vacaciones/acumulados/${modal.value.control_id}`,
+      { dias_acumulados: modal.value.dias },
+    );
 
-  await axios.put(
-    `http://localhost:3000/api/vacaciones/acumulados/${modal.value.control_id}`,
-    { dias_acumulados: modal.value.dias }
-  )
+    mostrarToast("Días acumulados actualizados");
 
-  mostrarToast("Días acumulados actualizados")
+    modal.value.visible = false;
 
-  modal.value.visible = false
-
-  cargarControl()
-
-}
+    cargarControl();
+  } catch (error) {
+    if (error.response) {
+      mostrarToast(
+        error.response?.data?.mensaje ||
+          error.response?.data?.error ||
+          "No se pudo actualizar los días acumulados",
+        "error",
+      );
+    } else {
+      mostrarToast("Error al conectar con el servidor", "error");
+    }
+  }
+};
 
 /* FECHA */
 
