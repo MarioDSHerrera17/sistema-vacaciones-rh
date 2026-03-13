@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import Empleados from "../views/Empleados.vue";
 import Vacaciones from "../views/Vacaciones.vue";
 import HistorialVacaciones from "../views/Historial-Vacaciones.vue";
+import Feriados from "../views/Feriados.vue";
 
 const routes = [
   {
@@ -20,7 +21,11 @@ const routes = [
   {
     path: "/historial",
     component: HistorialVacaciones,
-  }
+  },
+  {
+    path: "/feriados", 
+    component: Feriados
+  },
 ];
 
 const router = createRouter({

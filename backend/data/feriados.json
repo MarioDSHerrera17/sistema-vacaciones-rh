@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "fecha": "2026-01-01",
+    "descripcion": "Año Nuevo"
+  },
+  {
+    "id": 2,
+    "fecha": "2026-02-05",
+    "descripcion": "Día de la Constitución"
+  },
+  {
+    "id": 3,
+    "fecha": "2026-03-16",
+    "descripcion": "Natalicio de Benito Juárez"
+  },
+  {
+    "id": 4,
+    "fecha": "2026-05-01",
+    "descripcion": "Día del Trabajo"
+  },
+  {
+    "id": 5,
+    "fecha": "2026-09-16",
+    "descripcion": "Día de la Independencia"
+  },
+  {
+    "id": 6,
+    "fecha": "2026-11-16",
+    "descripcion": "Día de la Revolución"
+  },
+  {
+    "id": 7,
+    "fecha": "2026-12-25",
+    "descripcion": "Navidad"
+  },
+  {
+    "id": 8,
+    "fecha": "2027-01-01",
+    "descripcion": "Año nuevo 2027"
+  }
+]

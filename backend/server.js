@@ -6,6 +6,7 @@ require("./initDatabase");
 const empleadosRoutes = require("./routes/empleadosRoutes");
 const vacacionesRoutes = require("./routes/vacacionesRoutes");
 const historialRoutes = require("./routes/historiaRoutes")
+const feriadosRoutes = require("./routes/feriadosRoutes");
 require("./jobs/renovarVacaciones.job.js");
 const app = express();
 
@@ -16,6 +17,7 @@ app.use(express.json());
 app.use("/api", empleadosRoutes);
 app.use("/api/vacaciones", vacacionesRoutes);
 app.use("/api/historial", historialRoutes);
+app.use("/api/feriados", feriadosRoutes);
 const PORT = 3000;
 
 

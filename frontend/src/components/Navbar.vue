@@ -17,9 +17,11 @@
       <router-link to="/empleados">Empleados</router-link>
       <router-link to="/vacaciones">Vacaciones</router-link>
       <router-link to="/historial">Historial</router-link>
+      <router-link to="/feriados">Feriados</router-link>
     </div>
   </nav>
 </template>
+
 <script setup>
 import { ref } from "vue";
 
@@ -29,6 +31,7 @@ const toggleMenu = () => {
   menuAbierto.value = !menuAbierto.value;
 };
 </script>
+
 <style scoped>
 .navbar {
   width: 100%;
@@ -43,8 +46,6 @@ const toggleMenu = () => {
   box-sizing: border-box;
   position: relative;
 }
-
-/* IZQUIERDA */
 
 .left {
   display: flex;
@@ -62,8 +63,6 @@ h1 {
   height: auto;
 }
 
-/* MENU DESKTOP */
-
 .menu {
   display: flex;
   gap: 25px;
@@ -74,8 +73,6 @@ h1 {
   text-decoration: none;
   font-size: 15px;
 }
-
-/* HAMBURGUESA */
 
 .hamburger {
   display: none;
@@ -90,10 +87,6 @@ h1 {
   background: white;
   display: block;
 }
-
-/* ---------------- */
-/* RESPONSIVE */
-/* ---------------- */
 
 @media (max-width: 768px) {
   .hamburger {
