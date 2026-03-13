@@ -84,10 +84,18 @@
         </select>
 
         <label>Fecha inicio</label>
-        <input type="date" v-model="nueva.fecha_inicio" :disabled="esVacacionPasada" />
+        <input
+          type="date"
+          v-model="nueva.fecha_inicio"
+          :disabled="esVacacionPasada"
+        />
 
         <label>Fecha fin</label>
-        <input type="date" v-model="nueva.fecha_fin" :disabled="esVacacionPasada" />
+        <input
+          type="date"
+          v-model="nueva.fecha_fin"
+          :disabled="esVacacionPasada"
+        />
 
         <textarea v-model="nueva.comentario" placeholder="Comentario">
         </textarea>
@@ -99,6 +107,13 @@
         </div>
       </div>
     </div>
+    <ConfirmDialog
+      :visible="dialogVisible"
+      titulo="Eliminar vacaciones"
+      mensaje="¿Seguro que deseas eliminar este registro?"
+      @confirmar="confirmarEliminar"
+      @cancelar="cancelarEliminar"
+    />
   </div>
 </template>
 
@@ -106,6 +121,10 @@
 import { ref, onMounted } from "vue";
 import axios from "axios";
 import { computed } from "vue";
+import ConfirmDialog from "../components/ConfirmDialog.vue";
+
+const dialogVisible = ref(false);
+const vacacionEliminar = ref(null);
 
 const historialFiltrado = computed(() => {
   return historialVacaciones.value.filter((v) => {
@@ -230,16 +249,18 @@ const registrarVacaciones = async () => {
   }
 };
 
-const eliminarVacacion = async (id) => {
-  const confirmar = confirm("¿Eliminar estas vacaciones?");
+const eliminarVacacion = (id) => {
+  vacacionEliminar.value = id;
+  dialogVisible.value = true;
+};
 
-  if (!confirmar) return;
-
+const confirmarEliminar = async () => {
   try {
-    await axios.delete(`http://localhost:3000/api/historial/${id}`);
+    await axios.delete(
+      `http://localhost:3000/api/historial/${vacacionEliminar.value}`,
+    );
 
     mostrarToast("Vacaciones eliminadas");
-
     cargarHistorial();
   } catch (error) {
     mostrarToast(
@@ -248,6 +269,9 @@ const eliminarVacacion = async (id) => {
       "error",
     );
   }
+
+  dialogVisible.value = false;
+  vacacionEliminar.value = null;
 };
 
 const editarVacacion = (v) => {
@@ -286,6 +310,11 @@ onMounted(() => {
   cargarHistorial();
   cargarEmpleados();
 });
+
+const cancelarEliminar = () => {
+  dialogVisible.value = false;
+  vacacionEliminar.value = null;
+};
 </script>
 
 <style scoped src="../css/vacaciones-historial.css"></style>

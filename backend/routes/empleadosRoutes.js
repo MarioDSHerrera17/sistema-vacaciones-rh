@@ -3,7 +3,6 @@ const router = express.Router();
 
 const empleadosController = require("../controllers/empleadosController");
 
-
 // CRUD
 router.post("/empleados", empleadosController.crearEmpleado);
 router.get("/empleados", empleadosController.obtenerEmpleados);
