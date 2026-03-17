@@ -122,6 +122,9 @@
         </div>
       </div>
     </div>
+
+    <!-- MODAL EDITAR EMPLEADO -->
+
     <div v-if="modalEditar" class="modal">
       <div class="modal-content">
         <h2>Editar empleado</h2>
@@ -167,18 +170,20 @@
 import { ref, computed, onMounted } from "vue";
 import axios from "axios";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
-const confirmVisible = ref(false);
 
+const confirmVisible = ref(false);
 const confirmTitulo = ref("");
 const confirmMensaje = ref("");
 
 let accionConfirmada = null;
+
 const abrirConfirmacion = (titulo, mensaje, accion) => {
   confirmTitulo.value = titulo;
   confirmMensaje.value = mensaje;
   accionConfirmada = accion;
   confirmVisible.value = true;
 };
+
 const confirmarAccion = () => {
   if (accionConfirmada) accionConfirmada();
   confirmVisible.value = false;
@@ -187,16 +192,14 @@ const confirmarAccion = () => {
 const cancelarAccion = () => {
   confirmVisible.value = false;
 };
-const empleados = ref([]);
 
+const empleados = ref([]);
 const search = ref("");
 const filtroDepartamento = ref("");
 const filtroMes = ref("");
 const filtroAnio = ref("");
-
 const departamentos = ref([]);
 const anios = ref([]);
-
 const modalVisible = ref(false);
 const modalEditar = ref(false);
 
@@ -305,13 +308,13 @@ const crearEmpleado = async () => {
     mostrarToast("La fecha de ingreso no puede ser futura", "error");
     return;
   }
+
   try {
     await axios.post("http://localhost:3000/api/empleados", nuevo.value);
 
     mostrarToast("Empleado creado correctamente");
 
     cerrarModal();
-
     cargarEmpleados();
   } catch (error) {
     const mensaje =
@@ -346,15 +349,21 @@ const cerrarModal = () => {
 // ==========================
 
 const editarEmpleado = (emp) => {
-  empleadoEdit.value = {
-    ...emp,
-  };
-
+  empleadoEdit.value = { ...emp };
   modalEditar.value = true;
 };
 
+// FIX: limpiar formulario al cerrar
 const cerrarModalEditar = () => {
   modalEditar.value = false;
+  empleadoEdit.value = {
+    id: null,
+    nombre: "",
+    fecha_ingreso: "",
+    puesto: "",
+    departamento: "",
+    correo: "",
+  };
 };
 
 // ==========================
@@ -391,12 +400,11 @@ const actualizarEmpleado = async () => {
         mostrarToast("Empleado actualizado correctamente");
 
         cerrarModalEditar();
-
         cargarEmpleados();
       } catch {
         mostrarToast("Error al actualizar", "error");
       }
-    },
+    }
   );
 };
 
@@ -413,12 +421,11 @@ const desactivarEmpleado = (id) => {
         await axios.put(`http://localhost:3000/api/empleados/desactivar/${id}`);
 
         mostrarToast("Empleado desactivado");
-
         cargarEmpleados();
       } catch {
         mostrarToast("Error al desactivar", "error");
       }
-    },
+    }
   );
 };
 
@@ -431,12 +438,11 @@ const activarEmpleado = (id) => {
         await axios.put(`http://localhost:3000/api/empleados/activar/${id}`);
 
         mostrarToast("Empleado activado");
-
         cargarEmpleados();
       } catch {
         mostrarToast("Error al activar", "error");
       }
-    },
+    }
   );
 };
 
@@ -451,10 +457,12 @@ const limpiarFiltros = () => {
   filtroAnio.value = "";
 };
 
+// FIX: formatear correctamente a DD/MM/YYYY
 const formatearFecha = (fecha) => {
   if (!fecha) return "";
-
-  return fecha.split("T")[0];
+  const solo = fecha.split("T")[0];
+  const [anio, mes, dia] = solo.split("-");
+  return `${dia}/${mes}/${anio}`;
 };
 
 // ==========================

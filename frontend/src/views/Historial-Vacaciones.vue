@@ -11,8 +11,8 @@
         + Registrar vacaciones
       </button>
     </div>
-    <!-- FILTROS -->
 
+    <!-- FILTROS -->
     <div class="filtros">
       <input v-model="filtros.nombre" placeholder="Buscar empleado" />
 
@@ -45,14 +45,9 @@
             <td>{{ v.id }}</td>
             <td>{{ v.nombre }}</td>
             <td>{{ v.puesto }}</td>
-
             <td>{{ formatearFecha(v.fecha_inicio) }}</td>
             <td>{{ formatearFecha(v.fecha_fin) }}</td>
-
-            <td class="dias">
-              {{ v.dias_tomados }}
-            </td>
-
+            <td class="dias">{{ v.dias_tomados }}</td>
             <td>{{ v.comentario }}</td>
 
             <td class="acciones">
@@ -70,12 +65,12 @@
     </div>
 
     <!-- MODAL -->
-
     <div v-if="modalVisible" class="modal">
       <div class="modal-content">
-        <h2>Registrar Vacaciones</h2>
+        <h2>{{ editando ? "Editar Vacaciones" : "Registrar Vacaciones" }}</h2>
 
-        <select v-model="nueva.empleado_id">
+        <!-- FIX: select deshabilitado al editar para no cambiar el empleado -->
+        <select v-model="nueva.empleado_id" :disabled="editando">
           <option value="">Seleccionar empleado</option>
 
           <option v-for="emp in empleados" :key="emp.id" :value="emp.id">
@@ -101,12 +96,15 @@
         </textarea>
 
         <div class="modal-buttons">
-          <button @click="registrarVacaciones">Registrar</button>
+          <button @click="registrarVacaciones">
+            {{ editando ? "Guardar" : "Registrar" }}
+          </button>
 
           <button @click="cerrarModal">Cancelar</button>
         </div>
       </div>
     </div>
+
     <ConfirmDialog
       :visible="dialogVisible"
       titulo="Eliminar vacaciones"
@@ -118,39 +116,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import axios from "axios";
-import { computed } from "vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 
 const dialogVisible = ref(false);
 const vacacionEliminar = ref(null);
-
-const historialFiltrado = computed(() => {
-  return historialVacaciones.value.filter((v) => {
-    const nombre = v.nombre
-      .toLowerCase()
-      .includes(filtros.value.nombre.toLowerCase());
-
-    const puesto = v.puesto
-      .toLowerCase()
-      .includes(filtros.value.puesto.toLowerCase());
-
-    const inicio =
-      !filtros.value.fecha_inicio ||
-      v.fecha_inicio >= filtros.value.fecha_inicio;
-
-    const fin =
-      !filtros.value.fecha_fin || v.fecha_fin <= filtros.value.fecha_fin;
-
-    return nombre && puesto && inicio && fin;
-  });
-});
 const historialVacaciones = ref([]);
 const empleados = ref([]);
-
 const modalVisible = ref(false);
-
 const editando = ref(false);
 const vacacionEditando = ref(null);
 
@@ -174,6 +148,31 @@ const nueva = ref({
   comentario: "",
 });
 
+// ==========================
+// FILTROS
+// ==========================
+
+const historialFiltrado = computed(() => {
+  return historialVacaciones.value.filter((v) => {
+    const nombre = v.nombre
+      .toLowerCase()
+      .includes(filtros.value.nombre.toLowerCase());
+
+    const puesto = v.puesto
+      .toLowerCase()
+      .includes(filtros.value.puesto.toLowerCase());
+
+    const inicio =
+      !filtros.value.fecha_inicio ||
+      v.fecha_inicio >= filtros.value.fecha_inicio;
+
+    const fin =
+      !filtros.value.fecha_fin || v.fecha_fin <= filtros.value.fecha_fin;
+
+    return nombre && puesto && inicio && fin;
+  });
+});
+
 const limpiarFiltros = () => {
   filtros.value = {
     nombre: "",
@@ -183,6 +182,10 @@ const limpiarFiltros = () => {
   };
 };
 
+// ==========================
+// COMPUTED
+// ==========================
+
 const esVacacionPasada = computed(() => {
   if (!editando.value) return false;
 
@@ -190,6 +193,10 @@ const esVacacionPasada = computed(() => {
 
   return nueva.value.fecha_fin < hoy;
 });
+
+// ==========================
+// TOAST
+// ==========================
 
 const mostrarToast = (mensaje, tipo = "success") => {
   toast.value.mensaje = mensaje;
@@ -200,6 +207,10 @@ const mostrarToast = (mensaje, tipo = "success") => {
     toast.value.visible = false;
   }, 3000);
 };
+
+// ==========================
+// CARGAR DATOS
+// ==========================
 
 const cargarHistorial = async () => {
   const res = await axios.get("http://localhost:3000/api/historial/historial");
@@ -212,6 +223,10 @@ const cargarEmpleados = async () => {
 
   empleados.value = res.data.filter((e) => e.estatus === "activo");
 };
+
+// ==========================
+// REGISTRAR / EDITAR
+// ==========================
 
 const registrarVacaciones = async () => {
   if (
@@ -227,14 +242,14 @@ const registrarVacaciones = async () => {
     if (editando.value) {
       await axios.put(
         `http://localhost:3000/api/historial/${vacacionEditando.value}`,
-        nueva.value,
+        nueva.value
       );
 
       mostrarToast("Vacaciones actualizadas");
     } else {
       const res = await axios.post(
         "http://localhost:3000/api/historial",
-        nueva.value,
+        nueva.value
       );
 
       mostrarToast(res.data.mensaje);
@@ -242,12 +257,14 @@ const registrarVacaciones = async () => {
 
     cerrarModal();
     cargarHistorial();
-
-    editando.value = false;
   } catch (error) {
     mostrarToast(error.response?.data?.mensaje || "Error", "error");
   }
 };
+
+// ==========================
+// ELIMINAR
+// ==========================
 
 const eliminarVacacion = (id) => {
   vacacionEliminar.value = id;
@@ -257,7 +274,7 @@ const eliminarVacacion = (id) => {
 const confirmarEliminar = async () => {
   try {
     await axios.delete(
-      `http://localhost:3000/api/historial/${vacacionEliminar.value}`,
+      `http://localhost:3000/api/historial/${vacacionEliminar.value}`
     );
 
     mostrarToast("Vacaciones eliminadas");
@@ -266,13 +283,22 @@ const confirmarEliminar = async () => {
     mostrarToast(
       error.response?.data?.mensaje ||
         "No se pueden eliminar vacaciones pasadas",
-      "error",
+      "error"
     );
   }
 
   dialogVisible.value = false;
   vacacionEliminar.value = null;
 };
+
+const cancelarEliminar = () => {
+  dialogVisible.value = false;
+  vacacionEliminar.value = null;
+};
+
+// ==========================
+// MODAL
+// ==========================
 
 const editarVacacion = (v) => {
   editando.value = true;
@@ -288,10 +314,15 @@ const editarVacacion = (v) => {
   modalVisible.value = true;
 };
 
-const abrirModal = () => (modalVisible.value = true);
+const abrirModal = () => {
+  modalVisible.value = true;
+};
 
+// FIX: resetear editando al cerrar para evitar POST/PUT incorrecto
 const cerrarModal = () => {
   modalVisible.value = false;
+  editando.value = false;
+  vacacionEditando.value = null;
 
   nueva.value = {
     empleado_id: "",
@@ -301,20 +332,24 @@ const cerrarModal = () => {
   };
 };
 
+// ==========================
+// UTILIDADES
+// ==========================
+
 const formatearFecha = (fecha) => {
+  if (!fecha) return "";
   const [anio, mes, dia] = fecha.split("-");
   return `${dia}/${mes}/${anio}`;
 };
+
+// ==========================
+// INIT
+// ==========================
 
 onMounted(() => {
   cargarHistorial();
   cargarEmpleados();
 });
-
-const cancelarEliminar = () => {
-  dialogVisible.value = false;
-  vacacionEliminar.value = null;
-};
 </script>
 
 <style scoped src="../css/vacaciones-historial.css"></style>

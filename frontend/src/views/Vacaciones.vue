@@ -64,9 +64,7 @@
                 {{ c.dias_restantes }}
               </td>
 
-              <td>
-                {{ c.dias_acumulados }}
-              </td>
+              <td>{{ c.dias_acumulados }}</td>
 
               <td>
                 <button class="btn-editar" @click="editarAcumulados(c)">
@@ -109,16 +107,16 @@
 
       <p v-else>No hay resultados</p>
     </div>
+
     <!-- MODAL EDITAR ACUMULADOS -->
     <div v-if="modal.visible" class="modal-overlay">
       <div class="modal">
         <h3>Editar días acumulados</h3>
 
-        <p class="empleado">
-          {{ modal.nombre }}
-        </p>
+        <p class="empleado">{{ modal.nombre }}</p>
 
-        <input type="number" v-model="modal.dias" min="0" />
+        <!-- FIX: step="1" para forzar enteros -->
+        <input type="number" v-model="modal.dias" min="0" step="1" />
 
         <div class="acciones">
           <button class="btn-cancelar" @click="cerrarModal">Cancelar</button>
@@ -211,16 +209,14 @@ const toggleHistorial = async (empleadoId) => {
 
   if (!historial.value[empleadoId]) {
     const res = await axios.get(
-      `http://localhost:3000/api/vacaciones/empleado/${empleadoId}`,
+      `http://localhost:3000/api/vacaciones/empleado/${empleadoId}`
     );
 
     historial.value[empleadoId] = res.data;
   }
 };
 
-/* EDITAR ACUMULADOS */
-
-/* MODAL */
+/* MODAL EDITAR ACUMULADOS */
 
 const modal = ref({
   visible: false,
@@ -240,17 +236,17 @@ const cerrarModal = () => {
   modal.value.visible = false;
 };
 
+// FIX: eliminada variable "res" que no se usaba
 const guardarAcumulados = async () => {
   try {
-    const res = await axios.put(
+    await axios.put(
       `http://localhost:3000/api/vacaciones/acumulados/${modal.value.control_id}`,
-      { dias_acumulados: modal.value.dias },
+      { dias_acumulados: modal.value.dias }
     );
 
     mostrarToast("Días acumulados actualizados");
 
     modal.value.visible = false;
-
     cargarControl();
   } catch (error) {
     if (error.response) {
@@ -258,7 +254,7 @@ const guardarAcumulados = async () => {
         error.response?.data?.mensaje ||
           error.response?.data?.error ||
           "No se pudo actualizar los días acumulados",
-        "error",
+        "error"
       );
     } else {
       mostrarToast("Error al conectar con el servidor", "error");
@@ -269,10 +265,12 @@ const guardarAcumulados = async () => {
 /* FECHA */
 
 const formatearFecha = (fecha) => {
+  if (!fecha) return "";
   const [anio, mes, dia] = fecha.split("-");
-
   return `${dia}/${mes}/${anio}`;
 };
+
+/* INIT */
 
 onMounted(() => {
   cargarControl();
