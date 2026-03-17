@@ -66,7 +66,7 @@
               </td>
             </tr>
 
-            <!-- HISTORIAL -->
+            <!-- HISTORIAL EXPANDIDO -->
             <tr v-if="expandido === c.id">
               <td colspan="8" class="historial-container">
                 <table class="tabla-historial">
@@ -100,12 +100,13 @@
     </div>
 
     <!-- MODAL EDITAR ACUMULADOS -->
-    <div v-if="modal.visible" class="modal-overlay">
-      <div class="modal">
+    <!-- Renombrado a .acumulados-overlay y .acumulados-modal para evitar conflicto con global.css -->
+    <div v-if="modal.visible" class="acumulados-overlay">
+      <div class="acumulados-modal">
         <h3>Editar días acumulados</h3>
-        <p class="empleado">{{ modal.nombre }}</p>
+        <p class="acumulados-empleado">{{ modal.nombre }}</p>
         <input type="number" v-model="modal.dias" min="0" step="1" />
-        <div class="acciones">
+        <div class="acumulados-acciones">
           <button class="btn-cancelar" @click="cerrarModal">Cancelar</button>
           <button class="btn-guardar" @click="guardarAcumulados">
             Guardar
@@ -215,5 +216,4 @@ onMounted(() => {
 });
 </script>
 
-<style scoped src="../css/vacaciones-control.css"></style>
-<style scoped src="../css/global.css"></style>
+<style src="../css/vacaciones-control.css"></style>

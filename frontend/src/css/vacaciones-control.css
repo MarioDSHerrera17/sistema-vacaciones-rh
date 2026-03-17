@@ -1,18 +1,57 @@
 /* ==================================================
    VACACIONES-CONTROL.CSS
-   Estilos específicos de la vista Control de Vacaciones
 ================================================== */
 
-/* ==========================
-   CONTENEDOR
-========================== */
-
 .vacaciones {
-  padding: 30px;
+  padding: 32px 36px;
 }
 
 /* ==========================
-   BOTÓN EXPANDIR HISTORIAL
+   TABLA PRINCIPAL
+========================== */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+  box-shadow: 0 2px 12px rgba(13, 27, 62, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+thead {
+  background: #0d1b3e;
+  color: white;
+}
+
+thead th {
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-size: 12px;
+  padding: 14px 15px;
+  border-bottom: 3px solid #e8821a;
+  text-align: left;
+}
+
+td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #dde3ed;
+  font-size: 13.5px;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr:hover {
+  background: #f5f8ff;
+}
+
+/* ==========================
+   BOTÓN EXPANDIR
 ========================== */
 
 .btn-expand {
@@ -20,12 +59,13 @@
   border: none;
   font-size: 16px;
   cursor: pointer;
-  color: #34495e;
+  color: #0d1b3e;
   padding: 2px 6px;
+  font-family: inherit;
 }
 
 .btn-expand:hover {
-  color: #3498db;
+  color: #e8821a;
 }
 
 .expand {
@@ -38,7 +78,7 @@
 ========================== */
 
 .restantes {
-  font-weight: bold;
+  font-weight: 700;
   color: #27ae60;
 }
 
@@ -47,8 +87,8 @@
 ========================== */
 
 .historial-container {
-  padding: 10px 20px;
-  background: #f9f9f9;
+  padding: 10px 20px 16px;
+  background: #f5f8ff;
 }
 
 .tabla-historial {
@@ -56,56 +96,100 @@
   border-collapse: collapse;
   box-shadow: none;
   border-radius: 0;
+  background: #f5f8ff;
 }
 
 .tabla-historial thead {
-  background: #546e7a;
+  background: #1a2f5e;
+  border-bottom: 2px solid #e8821a;
 }
 
-.tabla-historial th,
+.tabla-historial thead th {
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-size: 11px;
+  padding: 10px 12px;
+  color: white;
+  border-bottom: 2px solid #e8821a;
+}
+
 .tabla-historial td {
-  padding: 8px 12px;
+  padding: 9px 12px;
   font-size: 13px;
+  border-bottom: 1px solid #dde3ed;
 }
 
 /* ==========================
-   MODAL EDITAR ACUMULADOS
+   MODAL ACUMULADOS
+   Clases propias para evitar conflicto con global.css
 ========================== */
 
-.modal-overlay .modal {
-  background: white;
-  padding: 25px;
-  border-radius: 10px;
-  width: 320px;
-  text-align: center;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-}
-
-.modal-overlay .modal h3 {
-  font-size: 18px;
-  margin-bottom: 5px;
-  color: #2c3e50;
-}
-
-.modal-overlay .modal .empleado {
-  font-size: 15px;
-  color: #555;
-  margin-bottom: 10px;
-}
-
-.modal-overlay .modal input {
+.acumulados-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
-  padding: 8px;
-  margin-top: 10px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 14px;
-  text-align: center;
+  height: 100%;
+  background: rgba(13, 27, 62, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
 }
 
-.modal-overlay .modal .acciones {
+.acumulados-modal {
+  background: white;
+  padding: 32px;
+  border-radius: 8px;
+  width: 340px;
+  text-align: center;
+  box-shadow: 0 4px 24px rgba(13, 27, 62, 0.2);
+  border-top: 4px solid #e8821a;
+}
+
+.acumulados-modal h3 {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #0d1b3e;
+  margin-bottom: 8px;
+}
+
+.acumulados-empleado {
+  font-size: 14px;
+  color: #5a6a80;
+  margin-bottom: 4px;
+}
+
+.acumulados-modal input {
+  width: 100%;
+  padding: 10px 12px;
+  margin-top: 12px;
+  border: 1px solid #dde3ed;
+  border-radius: 4px;
+  font-size: 16px;
+  text-align: center;
+  font-family: "Barlow", sans-serif;
+  color: #0d1b3e;
+}
+
+.acumulados-modal input:focus {
+  outline: none;
+  border-color: #e8821a;
+}
+
+.acumulados-acciones {
   margin-top: 20px;
   display: flex;
   justify-content: space-between;
   gap: 10px;
+}
+
+.acumulados-acciones button {
+  flex: 1;
 }

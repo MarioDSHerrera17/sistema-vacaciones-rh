@@ -1,29 +1,69 @@
 /* ==================================================
    EMPLEADOS.CSS
-   Estilos específicos de la vista de empleados
-   y la vista de feriados (comparten este archivo)
+   También usado por Feriados.vue
 ================================================== */
 
-/* ==========================
-   CONTENEDOR
-========================== */
-
 .empleados {
-  padding: 30px;
+  padding: 32px 36px;
 }
 
 /* ==========================
-   STATUS EMPLEADO
+   TABLA
+========================== */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+  box-shadow: 0 2px 12px rgba(13, 27, 62, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+thead {
+  background: #0d1b3e;
+  color: white;
+}
+
+thead th {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-size: 12px;
+  padding: 14px 15px;
+  border-bottom: 3px solid #e8821a;
+  text-align: left;
+}
+
+td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #dde3ed;
+  font-size: 13.5px;
+  text-align: left;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr:hover {
+  background: #f5f8ff;
+}
+
+/* ==========================
+   STATUS
 ========================== */
 
 .activo {
   color: #27ae60;
-  font-weight: bold;
+  font-weight: 700;
 }
 
 .inactivo {
   color: #e74c3c;
-  font-weight: bold;
+  font-weight: 700;
 }
 
 /* ==========================
@@ -41,11 +81,25 @@
   color: white;
   padding: 5px 10px;
   border-radius: 4px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-size: 12px;
+  border: none;
+  cursor: pointer;
 }
 
 .btn-activar {
-  background: #2ecc71;
+  background: #27ae60;
   color: white;
   padding: 5px 10px;
   border-radius: 4px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-size: 12px;
+  border: none;
+  cursor: pointer;
 }

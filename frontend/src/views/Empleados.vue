@@ -390,5 +390,5 @@ onMounted(() => {
 });
 </script>
 
-<style scoped src="../css/global.css"></style>
-<style scoped src="../css/empleados.css"></style>
+
+<style src="../css/empleados.css"></style>

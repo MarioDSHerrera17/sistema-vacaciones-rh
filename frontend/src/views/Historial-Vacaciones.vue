@@ -266,5 +266,4 @@ onMounted(() => {
 });
 </script>
 
-<style scoped src="../css/vacaciones-historial.css"></style>
-<style scoped src="../css/global.css"></style>
+<style src="../css/vacaciones-historial.css"></style>
