@@ -1,127 +1,51 @@
-.header {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+/* ==================================================
+   EMPLEADOS.CSS
+   Estilos específicos de la vista de empleados
+   y la vista de feriados (comparten este archivo)
+================================================== */
+
+/* ==========================
+   CONTENEDOR
+========================== */
+
+.empleados {
+  padding: 30px;
 }
 
-.acciones {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.search {
-  padding: 8px;
-}
-
-.btn-agregar {
-  background: #2ecc71;
-  color: white;
-  border: none;
-  padding: 8px 15px;
-  cursor: pointer;
-}
-
-table {
-  width: 100%;
-  margin-top: 20px;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  border: 1px solid #ddd;
-  padding: 10px;
-}
-
-th {
-  background: #f4f4f4;
-}
+/* ==========================
+   STATUS EMPLEADO
+========================== */
 
 .activo {
-  color: green;
+  color: #27ae60;
   font-weight: bold;
 }
 
 .inactivo {
-  color: red;
+  color: #e74c3c;
   font-weight: bold;
 }
 
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+/* ==========================
+   ACCIONES EN TABLA
+========================== */
 
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.modal-content {
-  background: white;
-  padding: 25px;
-  width: 350px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.modal-buttons {
-  display: flex;
-  justify-content: space-between;
-}
 .acciones-tabla {
   display: flex;
-  gap: 5px;
-}
-
-.btn-editar {
-  background: #3498db;
-  color: white;
-  border: none;
-  padding: 5px 8px;
+  gap: 6px;
+  align-items: center;
 }
 
 .btn-desactivar {
   background: #e74c3c;
   color: white;
-  border: none;
-  padding: 5px 8px;
+  padding: 5px 10px;
+  border-radius: 4px;
 }
 
 .btn-activar {
   background: #2ecc71;
   color: white;
-  border: none;
-  padding: 5px 8px;
-}
-
-.btn-limpiar {
-  background: #95a5a6;
-  color: white;
-  border: none;
-  padding: 8px 12px;
-}
-.toast {
-  position: fixed;
-  margin-top: 100px;
-  top: 20px;
-  right: 20px;
-  padding: 12px 20px;
-  border-radius: 5px;
-  color: white;
-  font-weight: bold;
-  z-index: 1000;
-}
-
-.toast.success {
-  background: #2ecc71;
-}
-
-.toast.error {
-  background: #e74c3c;
+  padding: 5px 10px;
+  border-radius: 4px;
 }

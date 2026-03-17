@@ -11,7 +11,6 @@
     <!-- FILTROS -->
     <div class="filtros">
       <input v-model="filtros.nombre" placeholder="Buscar empleado" />
-
       <input v-model="filtros.puesto" placeholder="Puesto" />
 
       <select v-model="filtros.dias">
@@ -54,18 +53,12 @@
                   {{ expandido === c.id ? "▾" : "▸" }}
                 </button>
               </td>
-
               <td>{{ c.nombre }}</td>
               <td>{{ c.puesto }}</td>
               <td>{{ c.dias_correspondientes }}</td>
               <td>{{ c.dias_usados }}</td>
-
-              <td class="restantes">
-                {{ c.dias_restantes }}
-              </td>
-
+              <td class="restantes">{{ c.dias_restantes }}</td>
               <td>{{ c.dias_acumulados }}</td>
-
               <td>
                 <button class="btn-editar" @click="editarAcumulados(c)">
                   ✏️
@@ -85,7 +78,6 @@
                       <th>Comentario</th>
                     </tr>
                   </thead>
-
                   <tbody>
                     <tr v-for="v in historial[c.id]" :key="v.id">
                       <td>{{ formatearFecha(v.fecha_inicio) }}</td>
@@ -93,7 +85,6 @@
                       <td>{{ v.dias_tomados }}</td>
                       <td>{{ v.comentario }}</td>
                     </tr>
-
                     <tr v-if="!historial[c.id] || !historial[c.id].length">
                       <td colspan="4">No tiene vacaciones registradas</td>
                     </tr>
@@ -112,15 +103,10 @@
     <div v-if="modal.visible" class="modal-overlay">
       <div class="modal">
         <h3>Editar días acumulados</h3>
-
         <p class="empleado">{{ modal.nombre }}</p>
-
-        <!-- FIX: step="1" para forzar enteros -->
         <input type="number" v-model="modal.dias" min="0" step="1" />
-
         <div class="acciones">
           <button class="btn-cancelar" @click="cerrarModal">Cancelar</button>
-
           <button class="btn-guardar" @click="guardarAcumulados">
             Guardar
           </button>
@@ -133,119 +119,75 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import axios from "axios";
+import { API_URL } from "../services/api";
 
 const controlVacaciones = ref([]);
 const historial = ref({});
 const expandido = ref(null);
 
-/* FILTROS */
-
-const filtros = ref({
-  nombre: "",
-  puesto: "",
-  dias: "",
-});
+const filtros = ref({ nombre: "", puesto: "", dias: "" });
+const toast = ref({ visible: false, mensaje: "", tipo: "success" });
 
 const controlFiltrado = computed(() => {
   return controlVacaciones.value.filter((c) => {
-    const nombre = c.nombre
-      .toLowerCase()
-      .includes(filtros.value.nombre.toLowerCase());
-
-    const puesto = c.puesto
-      .toLowerCase()
-      .includes(filtros.value.puesto.toLowerCase());
-
-    const dias =
-      !filtros.value.dias || c.dias_correspondientes == filtros.value.dias;
-
-    return nombre && puesto && dias;
+    return (
+      c.nombre.toLowerCase().includes(filtros.value.nombre.toLowerCase()) &&
+      c.puesto.toLowerCase().includes(filtros.value.puesto.toLowerCase()) &&
+      (!filtros.value.dias || c.dias_correspondientes == filtros.value.dias)
+    );
   });
 });
 
 const limpiarFiltros = () => {
-  filtros.value = {
-    nombre: "",
-    puesto: "",
-    dias: "",
-  };
+  filtros.value = { nombre: "", puesto: "", dias: "" };
 };
 
-/* TOAST */
-
-const toast = ref({
-  visible: false,
-  mensaje: "",
-  tipo: "success",
-});
-
 const mostrarToast = (mensaje, tipo = "success") => {
-  toast.value.mensaje = mensaje;
-  toast.value.tipo = tipo;
-  toast.value.visible = true;
-
+  toast.value = { visible: true, mensaje, tipo };
   setTimeout(() => {
     toast.value.visible = false;
   }, 3000);
 };
 
-/* CONTROL */
-
 const cargarControl = async () => {
-  const res = await axios.get("http://localhost:3000/api/vacaciones/control");
-
+  const res = await axios.get(`${API_URL}/vacaciones/control`);
   controlVacaciones.value = res.data;
 };
-
-/* HISTORIAL */
 
 const toggleHistorial = async (empleadoId) => {
   if (expandido.value === empleadoId) {
     expandido.value = null;
     return;
   }
-
   expandido.value = empleadoId;
-
   if (!historial.value[empleadoId]) {
-    const res = await axios.get(
-      `http://localhost:3000/api/vacaciones/empleado/${empleadoId}`
-    );
-
+    const res = await axios.get(`${API_URL}/vacaciones/empleado/${empleadoId}`);
     historial.value[empleadoId] = res.data;
   }
 };
 
-/* MODAL EDITAR ACUMULADOS */
-
-const modal = ref({
-  visible: false,
-  control_id: null,
-  nombre: "",
-  dias: 0,
-});
+const modal = ref({ visible: false, control_id: null, nombre: "", dias: 0 });
 
 const editarAcumulados = (control) => {
-  modal.value.visible = true;
-  modal.value.control_id = control.control_id;
-  modal.value.nombre = control.nombre;
-  modal.value.dias = control.dias_acumulados;
+  modal.value = {
+    visible: true,
+    control_id: control.control_id,
+    nombre: control.nombre,
+    dias: control.dias_acumulados,
+  };
 };
 
 const cerrarModal = () => {
   modal.value.visible = false;
 };
 
-// FIX: eliminada variable "res" que no se usaba
 const guardarAcumulados = async () => {
   try {
     await axios.put(
-      `http://localhost:3000/api/vacaciones/acumulados/${modal.value.control_id}`,
-      { dias_acumulados: modal.value.dias }
+      `${API_URL}/vacaciones/acumulados/${modal.value.control_id}`,
+      { dias_acumulados: modal.value.dias },
     );
-
     mostrarToast("Días acumulados actualizados");
-
     modal.value.visible = false;
     cargarControl();
   } catch (error) {
@@ -254,7 +196,7 @@ const guardarAcumulados = async () => {
         error.response?.data?.mensaje ||
           error.response?.data?.error ||
           "No se pudo actualizar los días acumulados",
-        "error"
+        "error",
       );
     } else {
       mostrarToast("Error al conectar con el servidor", "error");
@@ -262,15 +204,11 @@ const guardarAcumulados = async () => {
   }
 };
 
-/* FECHA */
-
 const formatearFecha = (fecha) => {
   if (!fecha) return "";
   const [anio, mes, dia] = fecha.split("-");
   return `${dia}/${mes}/${anio}`;
 };
-
-/* INIT */
 
 onMounted(() => {
   cargarControl();
@@ -278,3 +216,4 @@ onMounted(() => {
 </script>
 
 <style scoped src="../css/vacaciones-control.css"></style>
+<style scoped src="../css/global.css"></style>

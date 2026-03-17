@@ -1,0 +1,310 @@
+/* ==================================================
+   GLOBAL.CSS
+   Estilos compartidos entre todas las vistas
+   Importar una sola vez en main.js
+================================================== */
+
+/* ==========================
+   BASE
+========================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f0f2f5;
+  color: #2c3e50;
+}
+
+/* ==========================
+   CONTENEDOR DE VISTA
+========================== */
+
+.vista {
+  padding: 30px;
+}
+
+/* ==========================
+   HEADER
+========================== */
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.header h1 {
+  font-size: 26px;
+  color: #2c3e50;
+}
+
+/* ==========================
+   ACCIONES / FILTROS
+========================== */
+
+.acciones {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filtros {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filtros input,
+.filtros select,
+.acciones input,
+.acciones select {
+  padding: 7px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+}
+
+.search {
+  padding: 7px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+/* ==========================
+   BOTONES COMUNES
+========================== */
+
+button {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: opacity 0.2s;
+}
+
+button:hover {
+  opacity: 0.85;
+}
+
+.btn-agregar {
+  background: #2ecc71;
+  color: white;
+}
+
+.btn-limpiar,
+.btn-reset {
+  background: #e74c3c;
+  color: white;
+}
+
+.btn-editar {
+  background: #3498db;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+}
+
+.btn-eliminar {
+  background: #e74c3c;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+}
+
+.btn-cancelar {
+  background: #95a5a6;
+  color: white;
+}
+
+.btn-guardar {
+  background: #2ecc71;
+  color: white;
+}
+
+/* ==========================
+   TABLA
+========================== */
+
+.tabla-container {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+thead {
+  background: #34495e;
+  color: white;
+}
+
+th,
+td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 14px;
+}
+
+tbody tr:hover {
+  background: #f4f6f7;
+}
+
+/* ==========================
+   MODAL
+========================== */
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.modal-content h2 {
+  font-size: 20px;
+  color: #2c3e50;
+  margin-bottom: 5px;
+}
+
+.modal-content input,
+.modal-content select,
+.modal-content textarea {
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  width: 100%;
+}
+
+.modal-content textarea {
+  resize: none;
+  height: 70px;
+}
+
+.modal-content label {
+  font-size: 13px;
+  color: #555;
+  margin-bottom: -6px;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* ==========================
+   BOTONES MODAL
+========================== */
+
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.modal-buttons button:first-child {
+  background: #3498db;
+  color: white;
+}
+
+.modal-buttons button:last-child {
+  background: #95a5a6;
+  color: white;
+}
+
+/* ==========================
+   TOAST
+========================== */
+
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  z-index: 2000;
+  animation: fadeIn 0.3s ease;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+.toast.success {
+  background: #2ecc71;
+}
+
+.toast.error {
+  background: #e74c3c;
+}
+
+/* ==========================
+   ANIMACIÓN
+========================== */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================
+   MENSAJE VACÍO
+========================== */
+
+p {
+  color: #888;
+  font-size: 15px;
+  margin-top: 20px;
+}

@@ -96,49 +96,39 @@
     <p v-else>No hay empleados</p>
 
     <!-- MODAL CREAR EMPLEADO -->
-
     <div v-if="modalVisible" class="modal">
       <div class="modal-content">
         <h2>Nuevo Empleado</h2>
 
         <input v-model="nuevo.nombre" placeholder="Nombre" />
-
         <input type="date" v-model="nuevo.fecha_ingreso" max="9999-12-31" />
-
         <input v-model="nuevo.puesto" placeholder="Puesto" />
-
         <input
           v-model="nuevo.departamento"
           placeholder="Departamento"
           @input="nuevo.departamento = nuevo.departamento.toUpperCase()"
         />
-
         <input type="email" v-model="nuevo.correo" placeholder="Correo" />
 
         <div class="modal-buttons">
           <button @click="crearEmpleado">Crear</button>
-
           <button @click="cerrarModal">Cancelar</button>
         </div>
       </div>
     </div>
 
     <!-- MODAL EDITAR EMPLEADO -->
-
     <div v-if="modalEditar" class="modal">
       <div class="modal-content">
         <h2>Editar empleado</h2>
 
         <input v-model="empleadoEdit.nombre" placeholder="Nombre" />
-
         <input
           type="date"
           v-model="empleadoEdit.fecha_ingreso"
           max="9999-12-31"
         />
-
         <input v-model="empleadoEdit.puesto" placeholder="Puesto" />
-
         <input
           v-model="empleadoEdit.departamento"
           placeholder="Departamento"
@@ -146,12 +136,10 @@
             empleadoEdit.departamento = empleadoEdit.departamento.toUpperCase()
           "
         />
-
         <input v-model="empleadoEdit.correo" placeholder="Correo" />
 
         <div class="modal-buttons">
           <button @click="actualizarEmpleado">Guardar</button>
-
           <button @click="cerrarModalEditar">Cancelar</button>
         </div>
       </div>
@@ -170,11 +158,11 @@
 import { ref, computed, onMounted } from "vue";
 import axios from "axios";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
+import { API_URL } from "../services/api";
 
 const confirmVisible = ref(false);
 const confirmTitulo = ref("");
 const confirmMensaje = ref("");
-
 let accionConfirmada = null;
 
 const abrirConfirmacion = (titulo, mensaje, accion) => {
@@ -203,11 +191,7 @@ const anios = ref([]);
 const modalVisible = ref(false);
 const modalEditar = ref(false);
 
-const toast = ref({
-  visible: false,
-  mensaje: "",
-  tipo: "success",
-});
+const toast = ref({ visible: false, mensaje: "", tipo: "success" });
 
 const nuevo = ref({
   nombre: "",
@@ -226,68 +210,37 @@ const empleadoEdit = ref({
   correo: "",
 });
 
-// ==========================
-// CARGAR EMPLEADOS
-// ==========================
-
 const cargarEmpleados = async () => {
-  const res = await axios.get("http://localhost:3000/api/empleados");
-
+  const res = await axios.get(`${API_URL}/empleados`);
   empleados.value = res.data;
-
   departamentos.value = [...new Set(res.data.map((e) => e.departamento))];
-
   anios.value = [
     ...new Set(res.data.map((e) => e.fecha_ingreso.split("-")[0])),
   ];
 };
 
-// ==========================
-// FILTROS
-// ==========================
-
 const empleadosFiltrados = computed(() => {
   return empleados.value.filter((emp) => {
     const partes = emp.fecha_ingreso.split("-");
-
     const anio = parseInt(partes[0]);
     const mes = parseInt(partes[1]);
 
-    const coincideBusqueda = emp.nombre
-      .toLowerCase()
-      .includes(search.value.toLowerCase());
-
-    const coincideDepartamento =
-      !filtroDepartamento.value ||
-      emp.departamento === filtroDepartamento.value;
-
-    const coincideMes = !filtroMes.value || mes == filtroMes.value;
-
-    const coincideAnio = !filtroAnio.value || anio == filtroAnio.value;
-
     return (
-      coincideBusqueda && coincideDepartamento && coincideMes && coincideAnio
+      emp.nombre.toLowerCase().includes(search.value.toLowerCase()) &&
+      (!filtroDepartamento.value ||
+        emp.departamento === filtroDepartamento.value) &&
+      (!filtroMes.value || mes == filtroMes.value) &&
+      (!filtroAnio.value || anio == filtroAnio.value)
     );
   });
 });
 
-// ==========================
-// TOAST
-// ==========================
-
 const mostrarToast = (mensaje, tipo = "success") => {
-  toast.value.mensaje = mensaje;
-  toast.value.tipo = tipo;
-  toast.value.visible = true;
-
+  toast.value = { visible: true, mensaje, tipo };
   setTimeout(() => {
     toast.value.visible = false;
   }, 3000);
 };
-
-// ==========================
-// CREAR EMPLEADO
-// ==========================
 
 const crearEmpleado = async () => {
   if (
@@ -301,32 +254,23 @@ const crearEmpleado = async () => {
     return;
   }
 
-  const hoy = new Date();
-  const fechaIngreso = new Date(nuevo.value.fecha_ingreso);
-
-  if (fechaIngreso > hoy) {
+  if (new Date(nuevo.value.fecha_ingreso) > new Date()) {
     mostrarToast("La fecha de ingreso no puede ser futura", "error");
     return;
   }
 
   try {
-    await axios.post("http://localhost:3000/api/empleados", nuevo.value);
-
+    await axios.post(`${API_URL}/empleados`, nuevo.value);
     mostrarToast("Empleado creado correctamente");
-
     cerrarModal();
     cargarEmpleados();
   } catch (error) {
-    const mensaje =
-      error.response?.data?.mensaje || "Error al crear el empleado";
-
-    mostrarToast(mensaje, "error");
+    mostrarToast(
+      error.response?.data?.mensaje || "Error al crear el empleado",
+      "error",
+    );
   }
 };
-
-// ==========================
-// MODAL CREAR
-// ==========================
 
 const abrirModal = () => {
   modalVisible.value = true;
@@ -334,7 +278,6 @@ const abrirModal = () => {
 
 const cerrarModal = () => {
   modalVisible.value = false;
-
   nuevo.value = {
     nombre: "",
     fecha_ingreso: "",
@@ -344,16 +287,11 @@ const cerrarModal = () => {
   };
 };
 
-// ==========================
-// MODAL EDITAR
-// ==========================
-
 const editarEmpleado = (emp) => {
   empleadoEdit.value = { ...emp };
   modalEditar.value = true;
 };
 
-// FIX: limpiar formulario al cerrar
 const cerrarModalEditar = () => {
   modalEditar.value = false;
   empleadoEdit.value = {
@@ -366,13 +304,8 @@ const cerrarModalEditar = () => {
   };
 };
 
-// ==========================
-// ACTUALIZAR EMPLEADO
-// ==========================
-
 const actualizarEmpleado = async () => {
   const e = empleadoEdit.value;
-
   if (
     !e.nombre ||
     !e.fecha_ingreso ||
@@ -386,31 +319,25 @@ const actualizarEmpleado = async () => {
 
   abrirConfirmacion(
     "Actualizar empleado",
-    "¿Deseas guardar los cambios de este empleado?",
+    "¿Deseas guardar los cambios?",
     async () => {
       try {
-        await axios.put(`http://localhost:3000/api/empleados/${e.id}`, {
+        await axios.put(`${API_URL}/empleados/${e.id}`, {
           nombre: e.nombre,
           fecha_ingreso: e.fecha_ingreso,
           puesto: e.puesto,
           departamento: e.departamento,
           correo: e.correo,
         });
-
         mostrarToast("Empleado actualizado correctamente");
-
         cerrarModalEditar();
         cargarEmpleados();
       } catch {
         mostrarToast("Error al actualizar", "error");
       }
-    }
+    },
   );
 };
-
-// ==========================
-// ACTIVAR / DESACTIVAR
-// ==========================
 
 const desactivarEmpleado = (id) => {
   abrirConfirmacion(
@@ -418,14 +345,13 @@ const desactivarEmpleado = (id) => {
     "¿Seguro que deseas desactivar este empleado?",
     async () => {
       try {
-        await axios.put(`http://localhost:3000/api/empleados/desactivar/${id}`);
-
+        await axios.put(`${API_URL}/empleados/desactivar/${id}`);
         mostrarToast("Empleado desactivado");
         cargarEmpleados();
       } catch {
         mostrarToast("Error al desactivar", "error");
       }
-    }
+    },
   );
 };
 
@@ -435,20 +361,15 @@ const activarEmpleado = (id) => {
     "¿Deseas activar nuevamente este empleado?",
     async () => {
       try {
-        await axios.put(`http://localhost:3000/api/empleados/activar/${id}`);
-
+        await axios.put(`${API_URL}/empleados/activar/${id}`);
         mostrarToast("Empleado activado");
         cargarEmpleados();
       } catch {
         mostrarToast("Error al activar", "error");
       }
-    }
+    },
   );
 };
-
-// ==========================
-// UTILIDADES
-// ==========================
 
 const limpiarFiltros = () => {
   search.value = "";
@@ -457,7 +378,6 @@ const limpiarFiltros = () => {
   filtroAnio.value = "";
 };
 
-// FIX: formatear correctamente a DD/MM/YYYY
 const formatearFecha = (fecha) => {
   if (!fecha) return "";
   const solo = fecha.split("T")[0];
@@ -465,13 +385,10 @@ const formatearFecha = (fecha) => {
   return `${dia}/${mes}/${anio}`;
 };
 
-// ==========================
-// INIT
-// ==========================
-
 onMounted(() => {
   cargarEmpleados();
 });
 </script>
 
+<style scoped src="../css/global.css"></style>
 <style scoped src="../css/empleados.css"></style>
