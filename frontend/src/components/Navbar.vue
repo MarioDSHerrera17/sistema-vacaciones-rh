@@ -21,17 +21,54 @@
       <router-link to="/vacaciones">VACACIONES</router-link>
       <router-link to="/historial">HISTORIAL</router-link>
       <router-link to="/feriados">FERIADOS</router-link>
+
+      <!-- Botón respaldo -->
+      <button class="btn-backup" @click="crearBackup" :disabled="cargando">
+        {{ cargando ? "Guardando..." : "💾 Respaldo" }}
+      </button>
+    </div>
+
+    <!-- Toast del navbar -->
+    <div v-if="toast.visible" :class="['navbar-toast', toast.tipo]">
+      {{ toast.mensaje }}
     </div>
   </nav>
 </template>
 
 <script setup>
 import { ref } from "vue";
+import axios from "axios";
+import { API_URL } from "../services/api";
 
 const menuAbierto = ref(false);
+const cargando = ref(false);
+
+const toast = ref({ visible: false, mensaje: "", tipo: "success" });
 
 const toggleMenu = () => {
   menuAbierto.value = !menuAbierto.value;
+};
+
+const mostrarToast = (mensaje, tipo = "success") => {
+  toast.value = { visible: true, mensaje, tipo };
+  setTimeout(() => {
+    toast.value.visible = false;
+  }, 3500);
+};
+
+const crearBackup = async () => {
+  cargando.value = true;
+  try {
+    const res = await axios.post(`${API_URL}/backup`);
+    mostrarToast(`✓ ${res.data.archivo}`, "success");
+  } catch (error) {
+    mostrarToast(
+      error.response?.data?.mensaje || "Error al crear el respaldo",
+      "error",
+    );
+  } finally {
+    cargando.value = false;
+  }
 };
 </script>
 
@@ -54,7 +91,7 @@ const toggleMenu = () => {
 }
 
 /* ========================
-   IZQUIERDA: LOGO + BRAND
+   IZQUIERDA
 ======================== */
 
 .left {
@@ -134,6 +171,81 @@ const toggleMenu = () => {
 }
 
 /* ========================
+   BOTÓN RESPALDO
+======================== */
+
+.btn-backup {
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: rgba(232, 130, 26, 0.15);
+  color: #e8821a;
+  border: 1px solid rgba(232, 130, 26, 0.4);
+  border-radius: 4px;
+  padding: 6px 14px;
+  margin-left: 16px;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    color 0.2s;
+  white-space: nowrap;
+}
+
+.btn-backup:hover {
+  background: #e8821a;
+  color: white;
+  border-color: #e8821a;
+}
+
+.btn-backup:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ========================
+   TOAST DEL NAVBAR
+======================== */
+
+.navbar-toast {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  padding: 10px 18px;
+  border-radius: 4px;
+  color: white;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  z-index: 2000;
+  animation: fadeIn 0.3s ease;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+}
+
+.navbar-toast.success {
+  background: #27ae60;
+  border-left: 4px solid #1e8449;
+}
+
+.navbar-toast.error {
+  background: #e74c3c;
+  border-left: 4px solid #a93226;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========================
    HAMBURGUESA
 ======================== */
 
@@ -150,7 +262,6 @@ const toggleMenu = () => {
   height: 2px;
   background: white;
   display: block;
-  transition: all 0.3s;
 }
 
 /* ========================
@@ -161,7 +272,6 @@ const toggleMenu = () => {
   .hamburger {
     display: flex;
   }
-
   .brand-sub {
     display: none;
   }
@@ -173,11 +283,9 @@ const toggleMenu = () => {
     width: 100%;
     background: #0d1b3e;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
-
     flex-direction: column;
     align-items: stretch;
     height: auto;
-
     display: none;
     z-index: 999;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
@@ -199,6 +307,11 @@ const toggleMenu = () => {
     border-left-color: #e8821a;
     border-bottom-color: transparent;
     background: rgba(232, 130, 26, 0.08);
+  }
+
+  .btn-backup {
+    margin: 8px 16px;
+    text-align: center;
   }
 }
 </style>
