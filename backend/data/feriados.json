@@ -25,6 +25,11 @@
     "descripcion": "Día de la Independencia"
   },
   {
+    "id": 8,
+    "fecha": "2026-09-21",
+    "descripcion": "Prueba"
+  },
+  {
     "id": 6,
     "fecha": "2026-11-16",
     "descripcion": "Día de la Revolución"

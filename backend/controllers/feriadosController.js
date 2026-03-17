@@ -6,6 +6,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const db = require("../db");
 
 const RUTA_FERIADOS = path.join(__dirname, "../data/feriados.json");
 
@@ -112,11 +113,41 @@ exports.eliminarFeriado = (req, res) => {
       return res.status(404).json({ mensaje: "Feriado no encontrado" });
     }
 
-    feriados.splice(index, 1);
+    const feriado = feriados[index];
 
-    guardarFeriados(feriados);
+    // =============================
+    // VALIDAR QUE NO HAY VACACIONES
+    // QUE CAIGAN EN ESTE FERIADO
+    // =============================
 
-    res.json({ mensaje: "Feriado eliminado correctamente" });
+    db.get(
+      `SELECT v.id, e.nombre
+       FROM vacaciones v
+       JOIN empleados e ON e.id = v.empleado_id
+       WHERE v.fecha_inicio <= ? AND v.fecha_fin >= ?
+       LIMIT 1`,
+      [feriado.fecha, feriado.fecha],
+      (err, row) => {
+        if (err) {
+          return res.status(500).json({ error: err.message });
+        }
+
+        if (row) {
+          return res.status(400).json({
+            mensaje: `No se puede eliminar este feriado porque ${row.nombre} tiene vacaciones registradas en esa fecha. Elimina o edita esas vacaciones primero.`,
+          });
+        }
+
+        // =============================
+        // SIN CONFLICTOS — ELIMINAR
+        // =============================
+
+        feriados.splice(index, 1);
+        guardarFeriados(feriados);
+
+        res.json({ mensaje: "Feriado eliminado correctamente" });
+      },
+    );
   } catch (err) {
     res.status(500).json({ error: "Error al eliminar el feriado" });
   }
