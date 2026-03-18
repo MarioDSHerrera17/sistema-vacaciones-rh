@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHashHistory } from "vue-router";
 
 import Empleados from "../views/Empleados.vue";
 import Vacaciones from "../views/Vacaciones.vue";
@@ -23,13 +23,13 @@ const routes = [
     component: HistorialVacaciones,
   },
   {
-    path: "/feriados", 
-    component: Feriados
+    path: "/feriados",
+    component: Feriados,
   },
 ];
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHashHistory(), // ← hash mode para Electron (file://)
   routes,
 });
 

@@ -15,33 +15,24 @@ const {
 // ======================================
 
 exports.crearEmpleado = (req, res) => {
-  const { nombre, fecha_ingreso, puesto, departamento, correo } = req.body;
+  const { nombre, fecha_ingreso, puesto, departamento } = req.body;
 
   // =============================
   // VALIDACIONES
   // =============================
 
-  if (!nombre || !fecha_ingreso || !puesto || !departamento || !correo) {
+  if (!nombre || !fecha_ingreso || !puesto || !departamento) {
     return res.status(400).json({
       mensaje: "Todos los campos son obligatorios",
     });
   }
 
   const nombreLimpio = nombre.trim();
-  const correoLimpio = correo.trim().toLowerCase();
   const departamentoLimpio = departamento.trim().toUpperCase();
 
   if (nombreLimpio.length < 3) {
     return res.status(400).json({
       mensaje: "El nombre debe tener al menos 3 caracteres",
-    });
-  }
-
-  const regexCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  if (!regexCorreo.test(correoLimpio)) {
-    return res.status(400).json({
-      mensaje: "El formato del correo no es válido",
     });
   }
 
@@ -55,78 +46,96 @@ exports.crearEmpleado = (req, res) => {
   }
 
   // =============================
-  // VALIDAR CORREO DUPLICADO
+  // INSERTAR EMPLEADO
   // =============================
 
-  const validarQuery = `SELECT id FROM empleados WHERE correo = ?`;
-
-  db.get(validarQuery, [correoLimpio], (err, row) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-
-    if (row) {
-      return res.status(400).json({
-        mensaje: "El correo ya está registrado",
-      });
-    }
-
-    // =============================
-    // INSERTAR EMPLEADO
-    // =============================
-
-    db.run(
-      `INSERT INTO empleados (nombre, fecha_ingreso, puesto, departamento, correo)
-       VALUES (?, ?, ?, ?, ?)`,
-      [nombreLimpio, fecha_ingreso, puesto, departamentoLimpio, correoLimpio],
-      function (err) {
-        if (err) {
-          return res.status(500).json({ error: err.message });
-        }
-
-        const empleadoId = this.lastID;
-
-        // =============================
-        // CALCULAR VACACIONES
-        // =============================
-
-        const anios = calcularAntiguedad(fecha_ingreso);
-        const dias = calcularDiasVacaciones(anios);
-        const anioActual = new Date().getFullYear();
-
-        // =============================
-        // CREAR CONTROL VACACIONES
-        // =============================
-
-        db.run(
-          `INSERT INTO control_vacaciones (empleado_id, anio, dias_correspondientes)
-           VALUES (?, ?, ?)`,
-          [empleadoId, anioActual, dias],
-          (err2) => {
-            if (err2) {
-              return res.status(500).json({ error: err2.message });
-            }
-
-            res.json({
-              mensaje: "Empleado creado correctamente",
-              empleadoId,
-              diasVacaciones: dias,
-            });
-          }
-        );
+  db.run(
+    `INSERT INTO empleados (nombre, fecha_ingreso, puesto, departamento)
+     VALUES (?, ?, ?, ?)`,
+    [nombreLimpio, fecha_ingreso, puesto, departamentoLimpio],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
       }
-    );
-  });
+
+      const empleadoId = this.lastID;
+
+      // =============================
+      // CALCULAR VACACIONES
+      // =============================
+
+      const anios = calcularAntiguedad(fecha_ingreso);
+      const dias = calcularDiasVacaciones(anios);
+      const anioActual = new Date().getFullYear();
+
+      // =============================
+      // CREAR CONTROL VACACIONES
+      // =============================
+
+      db.run(
+        `INSERT INTO control_vacaciones (empleado_id, anio, dias_correspondientes)
+         VALUES (?, ?, ?)`,
+        [empleadoId, anioActual, dias],
+        (err2) => {
+          if (err2) {
+            return res.status(500).json({ error: err2.message });
+          }
+
+          res.json({
+            mensaje: "Empleado creado correctamente",
+            empleadoId,
+            diasVacaciones: dias,
+          });
+        }
+      );
+    }
+  );
 };
 
 // ======================================
 // OBTENER TODOS LOS EMPLEADOS
+// Incluye disponibilidad y antiguedad calculados
 // ======================================
 
 exports.obtenerEmpleados = (req, res) => {
-  const query = `SELECT * FROM empleados ORDER BY nombre`;
+  const hoy = new Date().toISOString().split("T")[0];
 
-  db.all(query, [], (err, rows) => {
+  const query = `
+    SELECT
+      e.id,
+      e.nombre,
+      e.fecha_ingreso,
+      e.puesto,
+      e.departamento,
+      e.estatus,
+      e.created_at,
+
+      -- Antigüedad en años completos
+      (
+        CAST(strftime('%Y', 'now') AS INTEGER) -
+        CAST(strftime('%Y', e.fecha_ingreso) AS INTEGER) -
+        CASE
+          WHEN strftime('%m-%d', 'now') < strftime('%m-%d', e.fecha_ingreso)
+          THEN 1 ELSE 0
+        END
+      ) AS antiguedad,
+
+      -- Disponibilidad: 'vacaciones' si hay un periodo activo hoy, sino 'disponible'
+      CASE
+        WHEN EXISTS (
+          SELECT 1 FROM vacaciones v
+          WHERE v.empleado_id = e.id
+          AND v.fecha_inicio <= ?
+          AND v.fecha_fin >= ?
+        ) THEN 'vacaciones'
+        ELSE 'disponible'
+      END AS disponibilidad
+
+    FROM empleados e
+    ORDER BY e.nombre
+  `;
+
+  db.all(query, [hoy, hoy], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -141,10 +150,39 @@ exports.obtenerEmpleados = (req, res) => {
 
 exports.obtenerEmpleadoPorId = (req, res) => {
   const { id } = req.params;
+  const hoy = new Date().toISOString().split("T")[0];
 
-  const query = `SELECT * FROM empleados WHERE id = ?`;
+  const query = `
+    SELECT
+      e.id,
+      e.nombre,
+      e.fecha_ingreso,
+      e.puesto,
+      e.departamento,
+      e.estatus,
+      e.created_at,
+      (
+        CAST(strftime('%Y', 'now') AS INTEGER) -
+        CAST(strftime('%Y', e.fecha_ingreso) AS INTEGER) -
+        CASE
+          WHEN strftime('%m-%d', 'now') < strftime('%m-%d', e.fecha_ingreso)
+          THEN 1 ELSE 0
+        END
+      ) AS antiguedad,
+      CASE
+        WHEN EXISTS (
+          SELECT 1 FROM vacaciones v
+          WHERE v.empleado_id = e.id
+          AND v.fecha_inicio <= ?
+          AND v.fecha_fin >= ?
+        ) THEN 'vacaciones'
+        ELSE 'disponible'
+      END AS disponibilidad
+    FROM empleados e
+    WHERE e.id = ?
+  `;
 
-  db.get(query, [id], (err, row) => {
+  db.get(query, [hoy, hoy, id], (err, row) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -165,30 +203,20 @@ exports.obtenerEmpleadoPorId = (req, res) => {
 
 exports.actualizarEmpleado = (req, res) => {
   const { id } = req.params;
-  const { nombre, fecha_ingreso, puesto, departamento, correo } = req.body;
+  const { nombre, fecha_ingreso, puesto, departamento } = req.body;
 
   // =============================
-  // VALIDACIONES (antes de limpiar)
+  // VALIDACIONES
   // =============================
 
-  if (!nombre || !fecha_ingreso || !puesto || !departamento || !correo) {
+  if (!nombre || !fecha_ingreso || !puesto || !departamento) {
     return res.status(400).json({
       mensaje: "Todos los campos son obligatorios",
     });
   }
 
-  // Se limpia DESPUÉS de validar que los campos existen
   const nombreLimpio = nombre.trim();
-  const correoLimpio = correo.trim().toLowerCase();
   const departamentoLimpio = departamento.trim().toUpperCase();
-
-  const regexCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  if (!regexCorreo.test(correoLimpio)) {
-    return res.status(400).json({
-      mensaje: "Correo inválido",
-    });
-  }
 
   const fechaIngreso = new Date(fecha_ingreso);
   const hoy = new Date();
@@ -200,57 +228,34 @@ exports.actualizarEmpleado = (req, res) => {
   }
 
   // =============================
-  // VALIDAR CORREO DUPLICADO
+  // ACTUALIZAR
   // =============================
 
-  const validarQuery = `
-    SELECT id FROM empleados
-    WHERE correo = ?
-    AND id != ?
+  const query = `
+    UPDATE empleados
+    SET nombre = ?, fecha_ingreso = ?, puesto = ?, departamento = ?
+    WHERE id = ?
   `;
 
-  db.get(validarQuery, [correoLimpio, id], (err, row) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
+  db.run(
+    query,
+    [nombreLimpio, fecha_ingreso, puesto, departamentoLimpio, id],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
 
-    if (row) {
-      return res.status(400).json({
-        mensaje: "El correo ya está en uso",
-      });
-    }
-
-    // =============================
-    // ACTUALIZAR
-    // =============================
-
-    const query = `
-      UPDATE empleados
-      SET nombre = ?, fecha_ingreso = ?, puesto = ?, departamento = ?, correo = ?
-      WHERE id = ?
-    `;
-
-    db.run(
-      query,
-      [nombreLimpio, fecha_ingreso, puesto, departamentoLimpio, correoLimpio, id],
-      function (err) {
-        if (err) {
-          return res.status(500).json({ error: err.message });
-        }
-
-        // FIX: Verificar si el empleado realmente existía
-        if (this.changes === 0) {
-          return res.status(404).json({
-            mensaje: "Empleado no encontrado",
-          });
-        }
-
-        res.json({
-          mensaje: "Empleado actualizado correctamente",
+      if (this.changes === 0) {
+        return res.status(404).json({
+          mensaje: "Empleado no encontrado",
         });
       }
-    );
-  });
+
+      res.json({
+        mensaje: "Empleado actualizado correctamente",
+      });
+    }
+  );
 };
 
 // ======================================
@@ -260,28 +265,21 @@ exports.actualizarEmpleado = (req, res) => {
 exports.desactivarEmpleado = (req, res) => {
   const { id } = req.params;
 
-  const query = `
-    UPDATE empleados
-    SET estatus = 'inactivo'
-    WHERE id = ?
-  `;
+  db.run(
+    `UPDATE empleados SET estatus = 'inactivo' WHERE id = ?`,
+    [id],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
 
-  db.run(query, [id], function (err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+      if (this.changes === 0) {
+        return res.status(404).json({ mensaje: "Empleado no encontrado" });
+      }
+
+      res.json({ mensaje: "Empleado desactivado correctamente" });
     }
-
-    // FIX: Verificar si el empleado realmente existía
-    if (this.changes === 0) {
-      return res.status(404).json({
-        mensaje: "Empleado no encontrado",
-      });
-    }
-
-    res.json({
-      mensaje: "Empleado desactivado correctamente",
-    });
-  });
+  );
 };
 
 // ======================================
@@ -291,26 +289,19 @@ exports.desactivarEmpleado = (req, res) => {
 exports.activarEmpleado = (req, res) => {
   const { id } = req.params;
 
-  const query = `
-    UPDATE empleados
-    SET estatus = 'activo'
-    WHERE id = ?
-  `;
+  db.run(
+    `UPDATE empleados SET estatus = 'activo' WHERE id = ?`,
+    [id],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
 
-  db.run(query, [id], function (err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+      if (this.changes === 0) {
+        return res.status(404).json({ mensaje: "Empleado no encontrado" });
+      }
+
+      res.json({ mensaje: "Empleado activado correctamente" });
     }
-
-    // FIX: Verificar si el empleado realmente existía
-    if (this.changes === 0) {
-      return res.status(404).json({
-        mensaje: "Empleado no encontrado",
-      });
-    }
-
-    res.json({
-      mensaje: "Empleado activado correctamente",
-    });
-  });
+  );
 };
