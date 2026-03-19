@@ -19,7 +19,7 @@
           <option v-for="a in anios" :key="a" :value="a">{{ a }}</option>
         </select>
 
-        <button class="btn-agregar" @click="abrirModal">
+        <button v-if="esAdmin" class="btn-agregar" @click="abrirModal">
           + Agregar feriado
         </button>
         <button class="btn-limpiar" @click="limpiarFiltros">
@@ -34,7 +34,7 @@
           <th>ID</th>
           <th>Fecha</th>
           <th>Descripción</th>
-          <th>Acciones</th>
+          <th v-if="esAdmin">Acciones</th>
         </tr>
       </thead>
       <tbody>
@@ -42,7 +42,7 @@
           <td>{{ f.id }}</td>
           <td>{{ formatearFecha(f.fecha) }}</td>
           <td>{{ f.descripcion }}</td>
-          <td class="acciones-tabla">
+          <td v-if="esAdmin" class="acciones-tabla">
             <button class="btn-desactivar" @click="pedirEliminar(f.id)">
               Eliminar
             </button>
@@ -53,17 +53,14 @@
 
     <p v-else>No hay feriados registrados</p>
 
-    <!-- MODAL AGREGAR FERIADO -->
-    <div v-if="modalVisible" class="modal">
+    <!-- MODAL AGREGAR — solo admin -->
+    <div v-if="modalVisible && esAdmin" class="modal">
       <div class="modal-content">
         <h2>Nuevo Feriado</h2>
-
         <label>Fecha</label>
         <input type="date" v-model="nuevo.fecha" max="9999-12-31" />
-
         <label>Descripción</label>
         <input v-model="nuevo.descripcion" placeholder="Ej: Día del Trabajo" />
-
         <div class="modal-buttons">
           <button @click="agregarFeriado">Agregar</button>
           <button @click="cerrarModal">Cancelar</button>
@@ -86,6 +83,7 @@ import { ref, computed, onMounted } from "vue";
 import axios from "axios";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import { API_URL } from "../services/api";
+import { esAdmin } from "../stores/auth";
 
 const feriados = ref([]);
 const search = ref("");
@@ -94,7 +92,6 @@ const anios = ref([]);
 const modalVisible = ref(false);
 const confirmVisible = ref(false);
 const feriadoEliminar = ref(null);
-
 const toast = ref({ visible: false, mensaje: "", tipo: "success" });
 const nuevo = ref({ fecha: "", descripcion: "" });
 
@@ -162,16 +159,13 @@ const cancelarEliminar = () => {
   confirmVisible.value = false;
   feriadoEliminar.value = null;
 };
-
 const abrirModal = () => {
   modalVisible.value = true;
 };
-
 const cerrarModal = () => {
   modalVisible.value = false;
   nuevo.value = { fecha: "", descripcion: "" };
 };
-
 const limpiarFiltros = () => {
   search.value = "";
   filtroAnio.value = "";
@@ -189,4 +183,3 @@ onMounted(() => {
 </script>
 
 <style src="../css/empleados.css"></style>
-<style scoped src="../css/global.css"></style>

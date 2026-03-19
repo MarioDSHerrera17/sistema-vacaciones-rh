@@ -29,7 +29,7 @@
           <option v-for="a in anios" :key="a">{{ a }}</option>
         </select>
 
-        <button class="btn-agregar" @click="abrirModal">
+        <button v-if="esAdmin" class="btn-agregar" @click="abrirModal">
           + Agregar empleado
         </button>
         <button class="btn-limpiar" @click="limpiarFiltros">
@@ -72,7 +72,7 @@
           <th>Departamento</th>
           <th>Disponibilidad</th>
           <th>Estatus</th>
-          <th>Acciones</th>
+          <th v-if="esAdmin">Acciones</th>
         </tr>
       </thead>
 
@@ -87,7 +87,7 @@
           <td>{{ emp.puesto }}</td>
           <td>{{ emp.departamento }}</td>
 
-          <td>
+          <td class="td-disponibilidad">
             <span :class="['badge', emp.disponibilidad]">
               {{
                 emp.disponibilidad === "disponible"
@@ -101,11 +101,10 @@
             <span :class="emp.estatus">{{ emp.estatus }}</span>
           </td>
 
-          <td class="acciones-tabla">
+          <td v-if="esAdmin" class="acciones-tabla">
             <button class="btn-editar" @click="editarEmpleado(emp)">
               Editar
             </button>
-
             <button
               v-if="emp.estatus === 'activo'"
               class="btn-desactivar"
@@ -113,7 +112,6 @@
             >
               Desactivar
             </button>
-
             <button v-else class="btn-activar" @click="activarEmpleado(emp.id)">
               Activar
             </button>
@@ -124,11 +122,10 @@
 
     <p v-else>No hay empleados en esta categoría</p>
 
-    <!-- MODAL CREAR EMPLEADO -->
-    <div v-if="modalVisible" class="modal">
+    <!-- MODAL CREAR -->
+    <div v-if="modalVisible && esAdmin" class="modal">
       <div class="modal-content">
         <h2>Nuevo Empleado</h2>
-
         <input v-model="nuevo.nombre" placeholder="Nombre" />
         <input type="date" v-model="nuevo.fecha_ingreso" max="9999-12-31" />
         <input v-model="nuevo.puesto" placeholder="Puesto" />
@@ -137,7 +134,6 @@
           placeholder="Departamento"
           @input="nuevo.departamento = nuevo.departamento.toUpperCase()"
         />
-
         <div class="modal-buttons">
           <button @click="crearEmpleado">Crear</button>
           <button @click="cerrarModal">Cancelar</button>
@@ -145,11 +141,10 @@
       </div>
     </div>
 
-    <!-- MODAL EDITAR EMPLEADO -->
-    <div v-if="modalEditar" class="modal">
+    <!-- MODAL EDITAR -->
+    <div v-if="modalEditar && esAdmin" class="modal">
       <div class="modal-content">
         <h2>Editar empleado</h2>
-
         <input v-model="empleadoEdit.nombre" placeholder="Nombre" />
         <input
           type="date"
@@ -164,7 +159,6 @@
             empleadoEdit.departamento = empleadoEdit.departamento.toUpperCase()
           "
         />
-
         <div class="modal-buttons">
           <button @click="actualizarEmpleado">Guardar</button>
           <button @click="cerrarModalEditar">Cancelar</button>
@@ -187,6 +181,7 @@ import { ref, computed, onMounted } from "vue";
 import axios from "axios";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import { API_URL } from "../services/api";
+import { esAdmin } from "../stores/auth";
 
 const confirmVisible = ref(false);
 const confirmTitulo = ref("");
@@ -219,7 +214,6 @@ const departamentos = ref([]);
 const anios = ref([]);
 const modalVisible = ref(false);
 const modalEditar = ref(false);
-
 const toast = ref({ visible: false, mensaje: "", tipo: "success" });
 
 const nuevo = ref({
@@ -228,7 +222,6 @@ const nuevo = ref({
   puesto: "",
   departamento: "",
 });
-
 const empleadoEdit = ref({
   id: null,
   nombre: "",
@@ -236,10 +229,6 @@ const empleadoEdit = ref({
   puesto: "",
   departamento: "",
 });
-
-// ==========================
-// CARGAR
-// ==========================
 
 const cargarEmpleados = async () => {
   const res = await axios.get(`${API_URL}/empleados`);
@@ -250,22 +239,15 @@ const cargarEmpleados = async () => {
   ];
 };
 
-// ==========================
-// FILTROS Y TABS
-// ==========================
-
 const empleadosFiltrados = computed(() => {
   return empleados.value.filter((emp) => {
     const partes = emp.fecha_ingreso.split("-");
-    const anio = parseInt(partes[0]);
-    const mes = parseInt(partes[1]);
-
     return (
       emp.nombre.toLowerCase().includes(search.value.toLowerCase()) &&
       (!filtroDepartamento.value ||
         emp.departamento === filtroDepartamento.value) &&
-      (!filtroMes.value || mes == filtroMes.value) &&
-      (!filtroAnio.value || anio == filtroAnio.value)
+      (!filtroMes.value || parseInt(partes[1]) == filtroMes.value) &&
+      (!filtroAnio.value || parseInt(partes[0]) == filtroAnio.value)
     );
   });
 });
@@ -273,20 +255,14 @@ const empleadosFiltrados = computed(() => {
 const disponibles = computed(() =>
   empleadosFiltrados.value.filter((e) => e.disponibilidad === "disponible"),
 );
-
 const enVacaciones = computed(() =>
   empleadosFiltrados.value.filter((e) => e.disponibilidad === "vacaciones"),
 );
-
 const empleadosTab = computed(() => {
   if (tabActivo.value === "disponible") return disponibles.value;
   if (tabActivo.value === "vacaciones") return enVacaciones.value;
   return empleadosFiltrados.value;
 });
-
-// ==========================
-// TOAST
-// ==========================
 
 const mostrarToast = (mensaje, tipo = "success") => {
   toast.value = { visible: true, mensaje, tipo };
@@ -294,10 +270,6 @@ const mostrarToast = (mensaje, tipo = "success") => {
     toast.value.visible = false;
   }, 3000);
 };
-
-// ==========================
-// CREAR
-// ==========================
 
 const crearEmpleado = async () => {
   if (
@@ -309,12 +281,10 @@ const crearEmpleado = async () => {
     mostrarToast("Todos los campos son obligatorios", "error");
     return;
   }
-
   if (new Date(nuevo.value.fecha_ingreso) > new Date()) {
     mostrarToast("La fecha de ingreso no puede ser futura", "error");
     return;
   }
-
   try {
     await axios.post(`${API_URL}/empleados`, nuevo.value);
     mostrarToast("Empleado creado correctamente");
@@ -328,14 +298,9 @@ const crearEmpleado = async () => {
   }
 };
 
-// ==========================
-// MODALES
-// ==========================
-
 const abrirModal = () => {
   modalVisible.value = true;
 };
-
 const cerrarModal = () => {
   modalVisible.value = false;
   nuevo.value = { nombre: "", fecha_ingreso: "", puesto: "", departamento: "" };
@@ -345,7 +310,6 @@ const editarEmpleado = (emp) => {
   empleadoEdit.value = { ...emp };
   modalEditar.value = true;
 };
-
 const cerrarModalEditar = () => {
   modalEditar.value = false;
   empleadoEdit.value = {
@@ -357,17 +321,12 @@ const cerrarModalEditar = () => {
   };
 };
 
-// ==========================
-// ACTUALIZAR
-// ==========================
-
 const actualizarEmpleado = async () => {
   const e = empleadoEdit.value;
   if (!e.nombre || !e.fecha_ingreso || !e.puesto || !e.departamento) {
     mostrarToast("Todos los campos son obligatorios", "error");
     return;
   }
-
   abrirConfirmacion(
     "Actualizar empleado",
     "¿Deseas guardar los cambios?",
@@ -388,10 +347,6 @@ const actualizarEmpleado = async () => {
     },
   );
 };
-
-// ==========================
-// ACTIVAR / DESACTIVAR
-// ==========================
 
 const desactivarEmpleado = (id) => {
   abrirConfirmacion(
@@ -424,10 +379,6 @@ const activarEmpleado = (id) => {
     },
   );
 };
-
-// ==========================
-// UTILIDADES
-// ==========================
 
 const limpiarFiltros = () => {
   search.value = "";

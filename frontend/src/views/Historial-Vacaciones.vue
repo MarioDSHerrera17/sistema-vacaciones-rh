@@ -5,7 +5,7 @@
     </div>
 
     <div class="header">
-      <h1>Historial de Vacaciones</h1>      
+      <h1>Historial de Vacaciones</h1>
     </div>
 
     <!-- FILTROS -->
@@ -15,7 +15,7 @@
       <input type="date" v-model="filtros.fecha_inicio" />
       <input type="date" v-model="filtros.fecha_fin" />
       <button class="btn-reset" @click="limpiarFiltros">Borrar filtros</button>
-      <button class="btn-agregar" @click="abrirModal">
+      <button v-if="esAdmin" class="btn-agregar" @click="abrirModal">
         + Registrar vacaciones
       </button>
     </div>
@@ -31,7 +31,7 @@
             <th>Fin</th>
             <th>Días</th>
             <th>Comentario</th>
-            <th>Acciones</th>
+            <th v-if="esAdmin">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -43,7 +43,7 @@
             <td>{{ formatearFecha(v.fecha_fin) }}</td>
             <td class="dias">{{ v.dias_tomados }}</td>
             <td>{{ v.comentario }}</td>
-            <td class="acciones">
+            <td v-if="esAdmin" class="acciones">
               <button class="btn-editar" @click="editarVacacion(v)">✏️</button>
               <button class="btn-eliminar" @click="eliminarVacacion(v.id)">
                 🗑
@@ -56,7 +56,7 @@
     </div>
 
     <!-- MODAL -->
-    <div v-if="modalVisible" class="modal">
+    <div v-if="modalVisible && esAdmin" class="modal">
       <div class="modal-content">
         <h2>{{ editando ? "Editar Vacaciones" : "Registrar Vacaciones" }}</h2>
 
@@ -110,6 +110,7 @@ import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import { API_URL } from "../services/api";
+import { esAdmin } from "../stores/auth";
 
 const dialogVisible = ref(false);
 const vacacionEliminar = ref(null);
@@ -181,7 +182,6 @@ const registrarVacaciones = async () => {
     mostrarToast("Todos los campos son obligatorios", "error");
     return;
   }
-
   try {
     if (editando.value) {
       await axios.put(

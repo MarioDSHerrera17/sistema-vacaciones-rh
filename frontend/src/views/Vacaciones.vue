@@ -41,7 +41,7 @@
             <th>Días usados</th>
             <th>Días restantes</th>
             <th>Días acumulados</th>
-            <th></th>
+            <th v-if="esAdmin"></th>
           </tr>
         </thead>
 
@@ -59,7 +59,7 @@
               <td>{{ c.dias_usados }}</td>
               <td class="restantes">{{ c.dias_restantes }}</td>
               <td>{{ c.dias_acumulados }}</td>
-              <td>
+              <td v-if="esAdmin">
                 <button class="btn-editar" @click="editarAcumulados(c)">
                   ✏️
                 </button>
@@ -99,9 +99,8 @@
       <p v-else>No hay resultados</p>
     </div>
 
-    <!-- MODAL EDITAR ACUMULADOS -->
-    <!-- Renombrado a .acumulados-overlay y .acumulados-modal para evitar conflicto con global.css -->
-    <div v-if="modal.visible" class="acumulados-overlay">
+    <!-- MODAL EDITAR ACUMULADOS — solo admin -->
+    <div v-if="modal.visible && esAdmin" class="acumulados-overlay">
       <div class="acumulados-modal">
         <h3>Editar días acumulados</h3>
         <p class="acumulados-empleado">{{ modal.nombre }}</p>
@@ -121,11 +120,11 @@
 import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import { API_URL } from "../services/api";
+import { esAdmin } from "../stores/auth";
 
 const controlVacaciones = ref([]);
 const historial = ref({});
 const expandido = ref(null);
-
 const filtros = ref({ nombre: "", puesto: "", dias: "" });
 const toast = ref({ visible: false, mensaje: "", tipo: "success" });
 
@@ -196,7 +195,7 @@ const guardarAcumulados = async () => {
       mostrarToast(
         error.response?.data?.mensaje ||
           error.response?.data?.error ||
-          "No se pudo actualizar los días acumulados",
+          "No se pudo actualizar",
         "error",
       );
     } else {
