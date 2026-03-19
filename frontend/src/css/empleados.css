@@ -1,8 +1,3 @@
-/* ==================================================
-   EMPLEADOS.CSS
-   También usado por Feriados.vue
-================================================== */
-
 .empleados {
   padding: 32px 36px;
 }
@@ -102,4 +97,67 @@ tbody tr:hover {
   font-size: 12px;
   border: none;
   cursor: pointer;
+}
+
+/* ==========================
+   TABS
+========================== */
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 2px solid #dde3ed;
+  padding-bottom: 0;
+}
+
+.tab {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 10px 20px;
+  margin-bottom: -2px;
+  color: #5a6a80;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+  border-radius: 0;
+}
+
+.tab:hover {
+  color: #0d1b3e;
+}
+
+.tab-activo {
+  color: #0d1b3e;
+  border-bottom-color: #e8821a;
+}
+
+/* ==========================
+   BADGE DISPONIBILIDAD
+========================== */
+
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.badge.disponible {
+  background: #d5f5e3;
+  color: #1e8449;
+}
+
+.badge.vacaciones {
+  background: #fdebd0;
+  color: #c96d10;
 }

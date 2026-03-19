@@ -3,6 +3,7 @@
     <div v-if="toast.visible" :class="['toast', toast.tipo]">
       {{ toast.mensaje }}
     </div>
+
     <div class="header">
       <h1>Gestión de Empleados</h1>
 
@@ -15,23 +16,17 @@
 
         <select v-model="filtroDepartamento">
           <option value="">Todos los departamentos</option>
-          <option v-for="dep in departamentos" :key="dep">
-            {{ dep }}
-          </option>
+          <option v-for="dep in departamentos" :key="dep">{{ dep }}</option>
         </select>
 
         <select v-model="filtroMes">
           <option value="">Mes</option>
-          <option v-for="m in 12" :key="m" :value="m">
-            {{ m }}
-          </option>
+          <option v-for="m in 12" :key="m" :value="m">{{ m }}</option>
         </select>
 
         <select v-model="filtroAnio">
           <option value="">Año</option>
-          <option v-for="a in anios" :key="a">
-            {{ a }}
-          </option>
+          <option v-for="a in anios" :key="a">{{ a }}</option>
         </select>
 
         <button class="btn-agregar" @click="abrirModal">
@@ -43,33 +38,67 @@
       </div>
     </div>
 
-    <table v-if="empleadosFiltrados.length">
+    <!-- TABS -->
+    <div class="tabs">
+      <button
+        :class="['tab', tabActivo === 'todos' ? 'tab-activo' : '']"
+        @click="tabActivo = 'todos'"
+      >
+        Todos ({{ empleadosFiltrados.length }})
+      </button>
+      <button
+        :class="['tab', tabActivo === 'disponible' ? 'tab-activo' : '']"
+        @click="tabActivo = 'disponible'"
+      >
+        Disponibles ({{ disponibles.length }})
+      </button>
+      <button
+        :class="['tab', tabActivo === 'vacaciones' ? 'tab-activo' : '']"
+        @click="tabActivo = 'vacaciones'"
+      >
+        En vacaciones ({{ enVacaciones.length }})
+      </button>
+    </div>
+
+    <!-- TABLA -->
+    <table v-if="empleadosTab.length">
       <thead>
         <tr>
           <th>ID</th>
           <th>Nombre</th>
           <th>Fecha Ingreso</th>
+          <th>Antigüedad</th>
           <th>Puesto</th>
           <th>Departamento</th>
-          <th>Correo</th>
-          <th>Estado</th>
+          <th>Disponibilidad</th>
+          <th>Estatus</th>
           <th>Acciones</th>
         </tr>
       </thead>
 
       <tbody>
-        <tr v-for="emp in empleadosFiltrados" :key="emp.id">
+        <tr v-for="emp in empleadosTab" :key="emp.id">
           <td>{{ emp.id }}</td>
           <td>{{ emp.nombre }}</td>
           <td>{{ formatearFecha(emp.fecha_ingreso) }}</td>
+          <td>
+            {{ emp.antiguedad }} {{ emp.antiguedad === 1 ? "año" : "años" }}
+          </td>
           <td>{{ emp.puesto }}</td>
           <td>{{ emp.departamento }}</td>
-          <td>{{ emp.correo }}</td>
 
           <td>
-            <span :class="emp.estatus">
-              {{ emp.estatus }}
+            <span :class="['badge', emp.disponibilidad]">
+              {{
+                emp.disponibilidad === "disponible"
+                  ? "Disponible"
+                  : "En vacaciones"
+              }}
             </span>
+          </td>
+
+          <td>
+            <span :class="emp.estatus">{{ emp.estatus }}</span>
           </td>
 
           <td class="acciones-tabla">
@@ -93,7 +122,7 @@
       </tbody>
     </table>
 
-    <p v-else>No hay empleados</p>
+    <p v-else>No hay empleados en esta categoría</p>
 
     <!-- MODAL CREAR EMPLEADO -->
     <div v-if="modalVisible" class="modal">
@@ -108,7 +137,6 @@
           placeholder="Departamento"
           @input="nuevo.departamento = nuevo.departamento.toUpperCase()"
         />
-        <input type="email" v-model="nuevo.correo" placeholder="Correo" />
 
         <div class="modal-buttons">
           <button @click="crearEmpleado">Crear</button>
@@ -136,7 +164,6 @@
             empleadoEdit.departamento = empleadoEdit.departamento.toUpperCase()
           "
         />
-        <input v-model="empleadoEdit.correo" placeholder="Correo" />
 
         <div class="modal-buttons">
           <button @click="actualizarEmpleado">Guardar</button>
@@ -145,6 +172,7 @@
       </div>
     </div>
   </div>
+
   <ConfirmDialog
     :visible="confirmVisible"
     :titulo="confirmTitulo"
@@ -186,6 +214,7 @@ const search = ref("");
 const filtroDepartamento = ref("");
 const filtroMes = ref("");
 const filtroAnio = ref("");
+const tabActivo = ref("todos");
 const departamentos = ref([]);
 const anios = ref([]);
 const modalVisible = ref(false);
@@ -198,7 +227,6 @@ const nuevo = ref({
   fecha_ingreso: "",
   puesto: "",
   departamento: "",
-  correo: "",
 });
 
 const empleadoEdit = ref({
@@ -207,8 +235,11 @@ const empleadoEdit = ref({
   fecha_ingreso: "",
   puesto: "",
   departamento: "",
-  correo: "",
 });
+
+// ==========================
+// CARGAR
+// ==========================
 
 const cargarEmpleados = async () => {
   const res = await axios.get(`${API_URL}/empleados`);
@@ -218,6 +249,10 @@ const cargarEmpleados = async () => {
     ...new Set(res.data.map((e) => e.fecha_ingreso.split("-")[0])),
   ];
 };
+
+// ==========================
+// FILTROS Y TABS
+// ==========================
 
 const empleadosFiltrados = computed(() => {
   return empleados.value.filter((emp) => {
@@ -235,6 +270,24 @@ const empleadosFiltrados = computed(() => {
   });
 });
 
+const disponibles = computed(() =>
+  empleadosFiltrados.value.filter((e) => e.disponibilidad === "disponible"),
+);
+
+const enVacaciones = computed(() =>
+  empleadosFiltrados.value.filter((e) => e.disponibilidad === "vacaciones"),
+);
+
+const empleadosTab = computed(() => {
+  if (tabActivo.value === "disponible") return disponibles.value;
+  if (tabActivo.value === "vacaciones") return enVacaciones.value;
+  return empleadosFiltrados.value;
+});
+
+// ==========================
+// TOAST
+// ==========================
+
 const mostrarToast = (mensaje, tipo = "success") => {
   toast.value = { visible: true, mensaje, tipo };
   setTimeout(() => {
@@ -242,13 +295,16 @@ const mostrarToast = (mensaje, tipo = "success") => {
   }, 3000);
 };
 
+// ==========================
+// CREAR
+// ==========================
+
 const crearEmpleado = async () => {
   if (
     !nuevo.value.nombre ||
     !nuevo.value.fecha_ingreso ||
     !nuevo.value.puesto ||
-    !nuevo.value.departamento ||
-    !nuevo.value.correo
+    !nuevo.value.departamento
   ) {
     mostrarToast("Todos los campos son obligatorios", "error");
     return;
@@ -272,19 +328,17 @@ const crearEmpleado = async () => {
   }
 };
 
+// ==========================
+// MODALES
+// ==========================
+
 const abrirModal = () => {
   modalVisible.value = true;
 };
 
 const cerrarModal = () => {
   modalVisible.value = false;
-  nuevo.value = {
-    nombre: "",
-    fecha_ingreso: "",
-    puesto: "",
-    departamento: "",
-    correo: "",
-  };
+  nuevo.value = { nombre: "", fecha_ingreso: "", puesto: "", departamento: "" };
 };
 
 const editarEmpleado = (emp) => {
@@ -300,19 +354,16 @@ const cerrarModalEditar = () => {
     fecha_ingreso: "",
     puesto: "",
     departamento: "",
-    correo: "",
   };
 };
 
+// ==========================
+// ACTUALIZAR
+// ==========================
+
 const actualizarEmpleado = async () => {
   const e = empleadoEdit.value;
-  if (
-    !e.nombre ||
-    !e.fecha_ingreso ||
-    !e.puesto ||
-    !e.departamento ||
-    !e.correo
-  ) {
+  if (!e.nombre || !e.fecha_ingreso || !e.puesto || !e.departamento) {
     mostrarToast("Todos los campos son obligatorios", "error");
     return;
   }
@@ -327,7 +378,6 @@ const actualizarEmpleado = async () => {
           fecha_ingreso: e.fecha_ingreso,
           puesto: e.puesto,
           departamento: e.departamento,
-          correo: e.correo,
         });
         mostrarToast("Empleado actualizado correctamente");
         cerrarModalEditar();
@@ -338,6 +388,10 @@ const actualizarEmpleado = async () => {
     },
   );
 };
+
+// ==========================
+// ACTIVAR / DESACTIVAR
+// ==========================
 
 const desactivarEmpleado = (id) => {
   abrirConfirmacion(
@@ -371,6 +425,10 @@ const activarEmpleado = (id) => {
   );
 };
 
+// ==========================
+// UTILIDADES
+// ==========================
+
 const limpiarFiltros = () => {
   search.value = "";
   filtroDepartamento.value = "";
@@ -389,6 +447,5 @@ onMounted(() => {
   cargarEmpleados();
 });
 </script>
-
 
 <style src="../css/empleados.css"></style>
