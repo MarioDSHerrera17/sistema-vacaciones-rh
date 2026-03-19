@@ -22,9 +22,22 @@
       <router-link to="/historial">HISTORIAL</router-link>
       <router-link to="/feriados">FERIADOS</router-link>
 
-      <!-- Botón respaldo -->
-      <button class="btn-backup" @click="crearBackup" :disabled="cargando">
+      <!-- Botón respaldo solo para admin -->
+      <button
+        v-if="esAdmin"
+        class="btn-backup"
+        @click="crearBackup"
+        :disabled="cargando"
+      >
         {{ cargando ? "Guardando..." : "💾 Respaldo" }}
+      </button>
+
+      <!-- Botón sesión -->
+      <button v-if="!esAdmin" class="btn-codigo" @click="abrirModal">
+        🔓 Ingresar código
+      </button>
+      <button v-else class="btn-cerrar-sesion" @click="salir">
+        🔒 Cerrar sesión
       </button>
     </div>
 
@@ -32,16 +45,41 @@
     <div v-if="toast.visible" :class="['navbar-toast', toast.tipo]">
       {{ toast.mensaje }}
     </div>
+
+    <!-- Modal de código -->
+    <div v-if="modalVisible" class="codigo-overlay">
+      <div class="codigo-modal">
+        <h3>Acceso administrador</h3>
+        <p>Ingresa el código para habilitar la edición</p>
+
+        <input
+          v-model="codigo"
+          type="password"
+          placeholder="Código de acceso"
+          @keyup.enter="verificarCodigo"
+          ref="inputCodigo"
+        />
+
+        <div class="codigo-acciones">
+          <button class="btn-cancelar" @click="cerrarModal">Cancelar</button>
+          <button class="btn-guardar" @click="verificarCodigo">Ingresar</button>
+        </div>
+      </div>
+    </div>
   </nav>
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, nextTick } from "vue";
 import axios from "axios";
 import { API_URL } from "../services/api";
+import { esAdmin, iniciarSesion, cerrarSesion } from "../stores/auth";
 
 const menuAbierto = ref(false);
 const cargando = ref(false);
+const modalVisible = ref(false);
+const codigo = ref("");
+const inputCodigo = ref(null);
 
 const toast = ref({ visible: false, mensaje: "", tipo: "success" });
 
@@ -55,6 +93,57 @@ const mostrarToast = (mensaje, tipo = "success") => {
     toast.value.visible = false;
   }, 3500);
 };
+
+// ==========================
+// MODAL CÓDIGO
+// ==========================
+
+const abrirModal = () => {
+  modalVisible.value = true;
+  codigo.value = "";
+  nextTick(() => {
+    inputCodigo.value?.focus();
+  });
+};
+
+const cerrarModal = () => {
+  modalVisible.value = false;
+  codigo.value = "";
+};
+
+const verificarCodigo = async () => {
+  if (!codigo.value) {
+    mostrarToast("Ingresa el código", "error");
+    return;
+  }
+
+  try {
+    const res = await axios.post(`${API_URL}/auth/verificar`, {
+      codigo: codigo.value,
+    });
+
+    if (res.data.valido) {
+      iniciarSesion();
+      cerrarModal();
+      mostrarToast("✓ Modo administrador activado", "success");
+    }
+  } catch (error) {
+    mostrarToast(error.response?.data?.mensaje || "Código incorrecto", "error");
+    codigo.value = "";
+    nextTick(() => {
+      inputCodigo.value?.focus();
+    });
+  }
+};
+
+const salir = () => {
+  cerrarSesion();
+  mostrarToast("Sesión cerrada", "success");
+};
+
+// ==========================
+// BACKUP
+// ==========================
 
 const crearBackup = async () => {
   cargando.value = true;
@@ -89,10 +178,6 @@ const crearBackup = async () => {
   border-bottom: 3px solid #e8821a;
   box-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);
 }
-
-/* ========================
-   IZQUIERDA
-======================== */
 
 .left {
   display: flex;
@@ -130,10 +215,6 @@ const crearBackup = async () => {
   text-transform: uppercase;
 }
 
-/* ========================
-   MENU
-======================== */
-
 .menu {
   display: flex;
   gap: 0;
@@ -170,10 +251,6 @@ const crearBackup = async () => {
   background: rgba(232, 130, 26, 0.08);
 }
 
-/* ========================
-   BOTÓN RESPALDO
-======================== */
-
 .btn-backup {
   font-family: "Barlow Condensed", sans-serif;
   font-weight: 600;
@@ -185,7 +262,7 @@ const crearBackup = async () => {
   border: 1px solid rgba(232, 130, 26, 0.4);
   border-radius: 4px;
   padding: 6px 14px;
-  margin-left: 16px;
+  margin-left: 12px;
   cursor: pointer;
   transition:
     background 0.2s,
@@ -196,7 +273,6 @@ const crearBackup = async () => {
 .btn-backup:hover {
   background: #e8821a;
   color: white;
-  border-color: #e8821a;
 }
 
 .btn-backup:disabled {
@@ -204,9 +280,149 @@ const crearBackup = async () => {
   cursor: not-allowed;
 }
 
-/* ========================
-   TOAST DEL NAVBAR
-======================== */
+.btn-codigo {
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 6px 14px;
+  margin-left: 12px;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    color 0.2s;
+  white-space: nowrap;
+}
+
+.btn-codigo:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.btn-cerrar-sesion {
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: rgba(231, 76, 60, 0.2);
+  color: #ff6b6b;
+  border: 1px solid rgba(231, 76, 60, 0.4);
+  border-radius: 4px;
+  padding: 6px 14px;
+  margin-left: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.btn-cerrar-sesion:hover {
+  background: rgba(231, 76, 60, 0.4);
+}
+
+/* ==========================
+   MODAL CÓDIGO
+========================== */
+
+.codigo-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(13, 27, 62, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  backdrop-filter: blur(3px);
+}
+
+.codigo-modal {
+  background: white;
+  padding: 32px;
+  border-radius: 10px;
+  width: 360px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border-top: 4px solid #e8821a;
+}
+
+.codigo-modal h3 {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #0d1b3e;
+  margin-bottom: 6px;
+}
+
+.codigo-modal p {
+  font-size: 13px;
+  color: #5a6a80;
+  margin-bottom: 20px;
+}
+
+.codigo-modal input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #dde3ed;
+  border-radius: 6px;
+  font-size: 16px;
+  text-align: center;
+  letter-spacing: 3px;
+  font-family: "Barlow Condensed", sans-serif;
+  color: #0d1b3e;
+  transition: border-color 0.2s;
+}
+
+.codigo-modal input:focus {
+  outline: none;
+  border-color: #e8821a;
+}
+
+.codigo-acciones {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+.codigo-acciones button {
+  flex: 1;
+  padding: 9px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.btn-cancelar {
+  background: #95a5a6;
+  color: white;
+}
+
+.btn-guardar {
+  background: #e8821a;
+  color: white;
+}
+
+.btn-guardar:hover {
+  background: #c96d10;
+}
+
+/* ==========================
+   TOAST
+========================== */
 
 .navbar-toast {
   position: fixed;
@@ -219,7 +435,7 @@ const crearBackup = async () => {
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  z-index: 2000;
+  z-index: 3000;
   animation: fadeIn 0.3s ease;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
 }
@@ -245,9 +461,9 @@ const crearBackup = async () => {
   }
 }
 
-/* ========================
+/* ==========================
    HAMBURGUESA
-======================== */
+========================== */
 
 .hamburger {
   display: none;
@@ -263,10 +479,6 @@ const crearBackup = async () => {
   background: white;
   display: block;
 }
-
-/* ========================
-   RESPONSIVE
-======================== */
 
 @media (max-width: 768px) {
   .hamburger {
@@ -306,10 +518,11 @@ const crearBackup = async () => {
   .menu a.router-link-active {
     border-left-color: #e8821a;
     border-bottom-color: transparent;
-    background: rgba(232, 130, 26, 0.08);
   }
 
-  .btn-backup {
+  .btn-backup,
+  .btn-codigo,
+  .btn-cerrar-sesion {
     margin: 8px 16px;
     text-align: center;
   }

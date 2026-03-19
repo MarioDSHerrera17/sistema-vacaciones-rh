@@ -9,7 +9,9 @@ const vacacionesRoutes = require("./routes/vacacionesRoutes");
 const historialRoutes = require("./routes/historiaRoutes")
 const feriadosRoutes = require("./routes/feriadosRoutes");
 const backupRoutes = require("./routes/backupRoutes");
+const authRoutes = require("./routes/authRoutes");
 const app = express();
+
 
 app.use(cors());
 app.use(express.json());
@@ -20,6 +22,7 @@ app.use("/api/vacaciones", vacacionesRoutes);
 app.use("/api/historial", historialRoutes);
 app.use("/api/feriados", feriadosRoutes);
 app.use("/api/backup", backupRoutes);
+app.use("/api/auth", authRoutes)
 const PORT = 3000;
 
 

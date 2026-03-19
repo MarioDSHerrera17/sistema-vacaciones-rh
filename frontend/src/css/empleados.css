@@ -1,3 +1,8 @@
+/* ==================================================
+   EMPLEADOS.CSS
+   También usado por Feriados.vue
+================================================== */
+
 .empleados {
   padding: 32px 36px;
 }
@@ -22,7 +27,7 @@ thead {
 }
 
 thead th {
-  font-family: 'Barlow Condensed', sans-serif;
+  font-family: "Barlow Condensed", sans-serif;
   font-weight: 600;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -37,6 +42,7 @@ td {
   border-bottom: 1px solid #dde3ed;
   font-size: 13.5px;
   text-align: left;
+  vertical-align: middle;
 }
 
 tbody tr:last-child td {
@@ -48,7 +54,7 @@ tbody tr:hover {
 }
 
 /* ==========================
-   STATUS
+   STATUS ESTATUS
 ========================== */
 
 .activo {
@@ -76,7 +82,7 @@ tbody tr:hover {
   color: white;
   padding: 5px 10px;
   border-radius: 4px;
-  font-family: 'Barlow Condensed', sans-serif;
+  font-family: "Barlow Condensed", sans-serif;
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -90,7 +96,7 @@ tbody tr:hover {
   color: white;
   padding: 5px 10px;
   border-radius: 4px;
-  font-family: 'Barlow Condensed', sans-serif;
+  font-family: "Barlow Condensed", sans-serif;
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -108,11 +114,10 @@ tbody tr:hover {
   gap: 4px;
   margin-bottom: 16px;
   border-bottom: 2px solid #dde3ed;
-  padding-bottom: 0;
 }
 
 .tab {
-  font-family: 'Barlow Condensed', sans-serif;
+  font-family: "Barlow Condensed", sans-serif;
   font-weight: 600;
   font-size: 13px;
   letter-spacing: 0.8px;
@@ -141,15 +146,24 @@ tbody tr:hover {
    BADGE DISPONIBILIDAD
 ========================== */
 
+.td-disponibilidad {
+  width: 140px;
+  text-align: center;
+}
+
 .badge {
-  display: inline-block;
-  padding: 3px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 12px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  font-family: 'Barlow Condensed', sans-serif;
+  font-family: "Barlow Condensed", sans-serif;
   letter-spacing: 0.5px;
   text-transform: uppercase;
+  white-space: nowrap;
+  width: auto;
 }
 
 .badge.disponible {
