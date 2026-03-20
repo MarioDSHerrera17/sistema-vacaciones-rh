@@ -58,6 +58,12 @@
       >
         En vacaciones ({{ enVacaciones.length }})
       </button>
+      <button
+        :class="['tab', tabActivo === 'inactivos' ? 'tab-activo' : '']"
+        @click="tabActivo = 'inactivos'"
+      >
+        Inactivos ({{ inactivos.length }})
+      </button>
     </div>
 
     <!-- TABLA -->
@@ -70,7 +76,7 @@
           <th>Antigüedad</th>
           <th>Puesto</th>
           <th>Departamento</th>
-          <th>Disponibilidad</th>
+          <th v-if="tabActivo !== 'inactivos'">Disponibilidad</th>
           <th>Estatus</th>
           <th v-if="esAdmin">Acciones</th>
         </tr>
@@ -87,7 +93,7 @@
           <td>{{ emp.puesto }}</td>
           <td>{{ emp.departamento }}</td>
 
-          <td class="td-disponibilidad">
+          <td v-if="tabActivo !== 'inactivos'" class="td-disponibilidad">
             <span :class="['badge', emp.disponibilidad]">
               {{
                 emp.disponibilidad === "disponible"
@@ -199,7 +205,6 @@ const confirmarAccion = () => {
   if (accionConfirmada) accionConfirmada();
   confirmVisible.value = false;
 };
-
 const cancelarAccion = () => {
   confirmVisible.value = false;
 };
@@ -252,15 +257,25 @@ const empleadosFiltrados = computed(() => {
   });
 });
 
+// Solo activos para disponibles y en vacaciones
 const disponibles = computed(() =>
-  empleadosFiltrados.value.filter((e) => e.disponibilidad === "disponible"),
+  empleadosFiltrados.value.filter(
+    (e) => e.estatus === "activo" && e.disponibilidad === "disponible",
+  ),
 );
 const enVacaciones = computed(() =>
-  empleadosFiltrados.value.filter((e) => e.disponibilidad === "vacaciones"),
+  empleadosFiltrados.value.filter(
+    (e) => e.estatus === "activo" && e.disponibilidad === "vacaciones",
+  ),
 );
+const inactivos = computed(() =>
+  empleadosFiltrados.value.filter((e) => e.estatus === "inactivo"),
+);
+
 const empleadosTab = computed(() => {
   if (tabActivo.value === "disponible") return disponibles.value;
   if (tabActivo.value === "vacaciones") return enVacaciones.value;
+  if (tabActivo.value === "inactivos") return inactivos.value;
   return empleadosFiltrados.value;
 });
 

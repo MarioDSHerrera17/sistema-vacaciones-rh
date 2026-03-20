@@ -21,6 +21,7 @@
       <router-link to="/vacaciones">VACACIONES</router-link>
       <router-link to="/historial">HISTORIAL</router-link>
       <router-link to="/feriados">FERIADOS</router-link>
+      <router-link to="/reportes">REPORTES</router-link>
 
       <!-- Botón respaldo solo para admin -->
       <button
@@ -89,9 +90,7 @@ const toggleMenu = () => {
 
 const mostrarToast = (mensaje, tipo = "success") => {
   toast.value = { visible: true, mensaje, tipo };
-  setTimeout(() => {
-    toast.value.visible = false;
-  }, 3500);
+  setTimeout(() => { toast.value.visible = false; }, 3500);
 };
 
 // ==========================
@@ -128,11 +127,12 @@ const verificarCodigo = async () => {
       mostrarToast("✓ Modo administrador activado", "success");
     }
   } catch (error) {
-    mostrarToast(error.response?.data?.mensaje || "Código incorrecto", "error");
+    mostrarToast(
+      error.response?.data?.mensaje || "Código incorrecto",
+      "error"
+    );
     codigo.value = "";
-    nextTick(() => {
-      inputCodigo.value?.focus();
-    });
+    nextTick(() => { inputCodigo.value?.focus(); });
   }
 };
 
@@ -153,7 +153,7 @@ const crearBackup = async () => {
   } catch (error) {
     mostrarToast(
       error.response?.data?.mensaje || "Error al crear el respaldo",
-      "error",
+      "error"
     );
   } finally {
     cargando.value = false;

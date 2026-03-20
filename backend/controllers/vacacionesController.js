@@ -7,6 +7,7 @@ const db = require("../db");
 
 // ======================================
 // OBTENER CONTROL DE VACACIONES
+// Solo empleados activos
 // ======================================
 
 exports.obtenerControlVacaciones = (req, res) => {
@@ -17,6 +18,7 @@ exports.obtenerControlVacaciones = (req, res) => {
       e.id,
       e.nombre,
       e.puesto,
+      e.estatus,
       cv.id as control_id,
       cv.dias_correspondientes,
       cv.dias_usados,
@@ -25,12 +27,12 @@ exports.obtenerControlVacaciones = (req, res) => {
     FROM control_vacaciones cv
     JOIN empleados e ON e.id = cv.empleado_id
     WHERE cv.anio = ?
+    AND e.estatus = 'activo'
     ORDER BY e.nombre
   `;
 
   db.all(query, [anioActual], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-
     res.json(rows);
   });
 };
@@ -43,51 +45,44 @@ exports.editarAcumulados = (req, res) => {
   const { id } = req.params;
   const { dias_acumulados } = req.body;
 
-  // =============================
-  // VALIDACIONES
-  // =============================
-
-  // FIX: Verificar que el campo venga en el body
   if (dias_acumulados === undefined || dias_acumulados === null) {
-    return res.status(400).json({
-      mensaje: "dias_acumulados es obligatorio",
-    });
+    return res.status(400).json({ mensaje: "dias_acumulados es obligatorio" });
   }
 
-  // FIX: Verificar que sea un número entero válido
   if (!Number.isInteger(Number(dias_acumulados))) {
-    return res.status(400).json({
-      mensaje: "dias_acumulados debe ser un número entero",
-    });
+    return res
+      .status(400)
+      .json({ mensaje: "dias_acumulados debe ser un número entero" });
   }
 
   if (dias_acumulados < 0) {
-    return res.status(400).json({
-      mensaje: "Los días acumulados no pueden ser negativos",
-    });
+    return res
+      .status(400)
+      .json({ mensaje: "Los días acumulados no pueden ser negativos" });
   }
 
-  // =============================
-  // BUSCAR CONTROL
-  // =============================
-
   db.get(
-    `SELECT dias_correspondientes, dias_acumulados, dias_usados
-     FROM control_vacaciones
-     WHERE id = ?`,
+    `SELECT cv.dias_correspondientes, cv.dias_acumulados, cv.dias_usados, e.estatus
+     FROM control_vacaciones cv
+     JOIN empleados e ON e.id = cv.empleado_id
+     WHERE cv.id = ?`,
     [id],
     (err, control) => {
       if (err) return res.status(500).json({ error: err.message });
 
       if (!control) {
-        return res.status(404).json({
-          mensaje: "Control de vacaciones no encontrado",
-        });
+        return res
+          .status(404)
+          .json({ mensaje: "Control de vacaciones no encontrado" });
       }
 
-      // =============================
-      // VALIDAR QUE NO QUEDE NEGATIVO
-      // =============================
+      // Bloquear edición si el empleado está inactivo
+      if (control.estatus === "inactivo") {
+        return res.status(400).json({
+          mensaje:
+            "No se pueden editar los días acumulados de un empleado inactivo",
+        });
+      }
 
       const restantes =
         control.dias_correspondientes +
@@ -101,14 +96,8 @@ exports.editarAcumulados = (req, res) => {
         });
       }
 
-      // =============================
-      // ACTUALIZAR
-      // =============================
-
       db.run(
-        `UPDATE control_vacaciones
-         SET dias_acumulados = ?
-         WHERE id = ?`,
+        `UPDATE control_vacaciones SET dias_acumulados = ? WHERE id = ?`,
         [Number(dias_acumulados), id],
         (err2) => {
           if (err2) return res.status(500).json({ error: err2.message });
@@ -118,9 +107,9 @@ exports.editarAcumulados = (req, res) => {
             dias_acumulados: Number(dias_acumulados),
             dias_restantes: restantes,
           });
-        }
+        },
       );
-    }
+    },
   );
 };
 
@@ -131,7 +120,6 @@ exports.editarAcumulados = (req, res) => {
 exports.obtenerHistorialPorEmpleado = (req, res) => {
   const { id } = req.params;
 
-  // FIX: Verificar que el empleado existe antes de buscar su historial
   db.get(`SELECT id FROM empleados WHERE id = ?`, [id], (err, empleado) => {
     if (err) return res.status(500).json({ error: err.message });
 
@@ -140,12 +128,7 @@ exports.obtenerHistorialPorEmpleado = (req, res) => {
     }
 
     const query = `
-      SELECT 
-        id,
-        fecha_inicio,
-        fecha_fin,
-        dias_tomados,
-        comentario
+      SELECT id, fecha_inicio, fecha_fin, dias_tomados, comentario
       FROM vacaciones
       WHERE empleado_id = ?
       ORDER BY fecha_inicio DESC
@@ -153,7 +136,6 @@ exports.obtenerHistorialPorEmpleado = (req, res) => {
 
     db.all(query, [id], (err2, rows) => {
       if (err2) return res.status(500).json({ error: err2.message });
-
       res.json(rows);
     });
   });
