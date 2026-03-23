@@ -4,22 +4,23 @@ const { exec } = require("child_process");
 
 const RUTA_BACKUPS = path.join(__dirname, "../../database/backups");
 
-// ⚠️ AJUSTA ESTOS DATOS A TU CONFIG
 const DB_CONFIG = {
   host: "localhost",
   user: "root",
-  password: "",
-  database: "vacaciones_db",
+  password: "root",
+  database: "sistema_vacaciones",
 };
 
 // ======================================
 // CREAR RESPALDO
 // ======================================
 
+const { spawn } = require("child_process");
+
 exports.crearBackup = (req, res) => {
   try {
     if (!fs.existsSync(RUTA_BACKUPS)) {
-      fs.mkdirSync(RUTA_BACKUPS);
+      fs.mkdirSync(RUTA_BACKUPS, { recursive: true });
     }
 
     const ahora = new Date();
@@ -29,15 +30,22 @@ exports.crearBackup = (req, res) => {
     const nombreArchivo = `backup_${fecha}_${hora}.sql`;
     const rutaDestino = path.join(RUTA_BACKUPS, nombreArchivo);
 
-    // Comando mysqldump
-    const comando = `mysqldump -h ${DB_CONFIG.host} -u ${DB_CONFIG.user} -p${DB_CONFIG.password} ${DB_CONFIG.database} > "${rutaDestino}"`;
+    // 🔥 RUTA COMPLETA DE MYSQLDUMP (CLAVE)
+    const mysqldumpPath = `"C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysqldump.exe"`;
 
-    exec(comando, (error) => {
+    const comando = `${mysqldumpPath} -h ${DB_CONFIG.host} -u ${DB_CONFIG.user} -p${DB_CONFIG.password} ${DB_CONFIG.database} > "${rutaDestino}"`;
+
+    exec(comando, (error, stdout, stderr) => {
       if (error) {
+        console.error("Error mysqldump:", error);
         return res.status(500).json({
           mensaje: "Error al crear respaldo",
           error: error.message,
         });
+      }
+
+      if (stderr) {
+        console.warn("Warning mysqldump:", stderr);
       }
 
       res.json({
