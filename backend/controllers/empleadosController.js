@@ -1,8 +1,3 @@
-/*
-  Controlador para los empleados
-  Se definen las funciones para gestionar las operaciones CRUD de los empleados
-*/
-
 const db = require("../db");
 
 const {
@@ -14,12 +9,8 @@ const {
 // CREAR EMPLEADO
 // ======================================
 
-exports.crearEmpleado = (req, res) => {
+exports.crearEmpleado = async (req, res) => {
   const { nombre, fecha_ingreso, puesto, departamento } = req.body;
-
-  // =============================
-  // VALIDACIONES
-  // =============================
 
   if (!nombre || !fecha_ingreso || !puesto || !departamento) {
     return res.status(400).json({
@@ -45,59 +36,45 @@ exports.crearEmpleado = (req, res) => {
     });
   }
 
-  // =============================
-  // INSERTAR EMPLEADO
-  // =============================
+  try {
+    const pool = await db;
 
-  db.run(
-    `INSERT INTO empleados (nombre, fecha_ingreso, puesto, departamento)
-     VALUES (?, ?, ?, ?)`,
-    [nombreLimpio, fecha_ingreso, puesto, departamentoLimpio],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
+    // INSERTAR EMPLEADO
+    const [result] = await pool.execute(
+      `INSERT INTO empleados (nombre, fecha_ingreso, puesto, departamento)
+       VALUES (?, ?, ?, ?)`,
+      [nombreLimpio, fecha_ingreso, puesto, departamentoLimpio],
+    );
 
-      const empleadoId = this.lastID;
+    const empleadoId = result.insertId;
 
-      // =============================
-      // CALCULAR VACACIONES
-      // =============================
+    // CALCULAR VACACIONES
+    const anios = calcularAntiguedad(fecha_ingreso);
+    const dias = calcularDiasVacaciones(anios);
+    const anioActual = new Date().getFullYear();
 
-      const anios = calcularAntiguedad(fecha_ingreso);
-      const dias = calcularDiasVacaciones(anios);
-      const anioActual = new Date().getFullYear();
+    // CREAR CONTROL VACACIONES
+    await pool.execute(
+      `INSERT INTO control_vacaciones (empleado_id, anio, dias_correspondientes)
+       VALUES (?, ?, ?)`,
+      [empleadoId, anioActual, dias],
+    );
 
-      // =============================
-      // CREAR CONTROL VACACIONES
-      // =============================
-
-      db.run(
-        `INSERT INTO control_vacaciones (empleado_id, anio, dias_correspondientes)
-         VALUES (?, ?, ?)`,
-        [empleadoId, anioActual, dias],
-        (err2) => {
-          if (err2) {
-            return res.status(500).json({ error: err2.message });
-          }
-
-          res.json({
-            mensaje: "Empleado creado correctamente",
-            empleadoId,
-            diasVacaciones: dias,
-          });
-        }
-      );
-    }
-  );
+    res.json({
+      mensaje: "Empleado creado correctamente",
+      empleadoId,
+      diasVacaciones: dias,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // ======================================
 // OBTENER TODOS LOS EMPLEADOS
-// Incluye disponibilidad y antiguedad calculados
 // ======================================
 
-exports.obtenerEmpleados = (req, res) => {
+exports.obtenerEmpleados = async (req, res) => {
   const hoy = new Date().toISOString().split("T")[0];
 
   const query = `
@@ -110,17 +87,10 @@ exports.obtenerEmpleados = (req, res) => {
       e.estatus,
       e.created_at,
 
-      -- Antigüedad en años completos
-      (
-        CAST(strftime('%Y', 'now') AS INTEGER) -
-        CAST(strftime('%Y', e.fecha_ingreso) AS INTEGER) -
-        CASE
-          WHEN strftime('%m-%d', 'now') < strftime('%m-%d', e.fecha_ingreso)
-          THEN 1 ELSE 0
-        END
-      ) AS antiguedad,
+      -- Antigüedad en años (MySQL)
+      TIMESTAMPDIFF(YEAR, e.fecha_ingreso, CURDATE()) AS antiguedad,
 
-      -- Disponibilidad: 'vacaciones' si hay un periodo activo hoy, sino 'disponible'
+      -- Disponibilidad
       CASE
         WHEN EXISTS (
           SELECT 1 FROM vacaciones v
@@ -135,20 +105,20 @@ exports.obtenerEmpleados = (req, res) => {
     ORDER BY e.nombre
   `;
 
-  db.all(query, [hoy, hoy], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-
+  try {
+    const pool = await db;
+    const [rows] = await pool.execute(query, [hoy, hoy]);
     res.json(rows);
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // ======================================
 // OBTENER EMPLEADO POR ID
 // ======================================
 
-exports.obtenerEmpleadoPorId = (req, res) => {
+exports.obtenerEmpleadoPorId = async (req, res) => {
   const { id } = req.params;
   const hoy = new Date().toISOString().split("T")[0];
 
@@ -161,14 +131,9 @@ exports.obtenerEmpleadoPorId = (req, res) => {
       e.departamento,
       e.estatus,
       e.created_at,
-      (
-        CAST(strftime('%Y', 'now') AS INTEGER) -
-        CAST(strftime('%Y', e.fecha_ingreso) AS INTEGER) -
-        CASE
-          WHEN strftime('%m-%d', 'now') < strftime('%m-%d', e.fecha_ingreso)
-          THEN 1 ELSE 0
-        END
-      ) AS antiguedad,
+
+      TIMESTAMPDIFF(YEAR, e.fecha_ingreso, CURDATE()) AS antiguedad,
+
       CASE
         WHEN EXISTS (
           SELECT 1 FROM vacaciones v
@@ -178,36 +143,34 @@ exports.obtenerEmpleadoPorId = (req, res) => {
         ) THEN 'vacaciones'
         ELSE 'disponible'
       END AS disponibilidad
+
     FROM empleados e
     WHERE e.id = ?
   `;
 
-  db.get(query, [hoy, hoy, id], (err, row) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
+  try {
+    const pool = await db;
+    const [rows] = await pool.execute(query, [hoy, hoy, id]);
 
-    if (!row) {
+    if (rows.length === 0) {
       return res.status(404).json({
         mensaje: "Empleado no encontrado",
       });
     }
 
-    res.json(row);
-  });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // ======================================
 // ACTUALIZAR EMPLEADO
 // ======================================
 
-exports.actualizarEmpleado = (req, res) => {
+exports.actualizarEmpleado = async (req, res) => {
   const { id } = req.params;
   const { nombre, fecha_ingreso, puesto, departamento } = req.body;
-
-  // =============================
-  // VALIDACIONES
-  // =============================
 
   if (!nombre || !fecha_ingreso || !puesto || !departamento) {
     return res.status(400).json({
@@ -227,81 +190,76 @@ exports.actualizarEmpleado = (req, res) => {
     });
   }
 
-  // =============================
-  // ACTUALIZAR
-  // =============================
+  try {
+    const pool = await db;
 
-  const query = `
-    UPDATE empleados
-    SET nombre = ?, fecha_ingreso = ?, puesto = ?, departamento = ?
-    WHERE id = ?
-  `;
+    const [result] = await pool.execute(
+      `UPDATE empleados
+       SET nombre = ?, fecha_ingreso = ?, puesto = ?, departamento = ?
+       WHERE id = ?`,
+      [nombreLimpio, fecha_ingreso, puesto, departamentoLimpio, id],
+    );
 
-  db.run(
-    query,
-    [nombreLimpio, fecha_ingreso, puesto, departamentoLimpio, id],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-
-      if (this.changes === 0) {
-        return res.status(404).json({
-          mensaje: "Empleado no encontrado",
-        });
-      }
-
-      res.json({
-        mensaje: "Empleado actualizado correctamente",
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        mensaje: "Empleado no encontrado",
       });
     }
-  );
+
+    res.json({
+      mensaje: "Empleado actualizado correctamente",
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // ======================================
 // DESACTIVAR EMPLEADO
 // ======================================
 
-exports.desactivarEmpleado = (req, res) => {
+exports.desactivarEmpleado = async (req, res) => {
   const { id } = req.params;
 
-  db.run(
-    `UPDATE empleados SET estatus = 'inactivo' WHERE id = ?`,
-    [id],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
+  try {
+    const pool = await db;
 
-      if (this.changes === 0) {
-        return res.status(404).json({ mensaje: "Empleado no encontrado" });
-      }
+    const [result] = await pool.execute(
+      `UPDATE empleados SET estatus = 'inactivo' WHERE id = ?`,
+      [id],
+    );
 
-      res.json({ mensaje: "Empleado desactivado correctamente" });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ mensaje: "Empleado no encontrado" });
     }
-  );
+
+    res.json({ mensaje: "Empleado desactivado correctamente" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // ======================================
 // ACTIVAR EMPLEADO
 // ======================================
 
-exports.activarEmpleado = (req, res) => {
+exports.activarEmpleado = async (req, res) => {
   const { id } = req.params;
 
-  db.run(
-    `UPDATE empleados SET estatus = 'activo' WHERE id = ?`,
-    [id],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
+  try {
+    const pool = await db;
 
-      if (this.changes === 0) {
-        return res.status(404).json({ mensaje: "Empleado no encontrado" });
-      }
+    const [result] = await pool.execute(
+      `UPDATE empleados SET estatus = 'activo' WHERE id = ?`,
+      [id],
+    );
 
-      res.json({ mensaje: "Empleado activado correctamente" });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ mensaje: "Empleado no encontrado" });
     }
-  );
+
+    res.json({ mensaje: "Empleado activado correctamente" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };

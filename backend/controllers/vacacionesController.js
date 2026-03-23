@@ -1,16 +1,10 @@
-/*
-  Controlador para control de vacaciones
-  Gestiona la consulta del control anual, edición de días acumulados e historial por empleado
-*/
-
 const db = require("../db");
 
 // ======================================
 // OBTENER CONTROL DE VACACIONES
-// Solo empleados activos
 // ======================================
 
-exports.obtenerControlVacaciones = (req, res) => {
+exports.obtenerControlVacaciones = async (req, res) => {
   const anioActual = new Date().getFullYear();
 
   const query = `
@@ -31,17 +25,20 @@ exports.obtenerControlVacaciones = (req, res) => {
     ORDER BY e.nombre
   `;
 
-  db.all(query, [anioActual], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
+  try {
+    const pool = await db;
+    const [rows] = await pool.execute(query, [anioActual]);
     res.json(rows);
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // ======================================
 // EDITAR DIAS ACUMULADOS
 // ======================================
 
-exports.editarAcumulados = (req, res) => {
+exports.editarAcumulados = async (req, res) => {
   const { id } = req.params;
   const { dias_acumulados } = req.body;
 
@@ -61,82 +58,88 @@ exports.editarAcumulados = (req, res) => {
       .json({ mensaje: "Los días acumulados no pueden ser negativos" });
   }
 
-  db.get(
-    `SELECT cv.dias_correspondientes, cv.dias_acumulados, cv.dias_usados, e.estatus
-     FROM control_vacaciones cv
-     JOIN empleados e ON e.id = cv.empleado_id
-     WHERE cv.id = ?`,
-    [id],
-    (err, control) => {
-      if (err) return res.status(500).json({ error: err.message });
+  try {
+    const pool = await db;
 
-      if (!control) {
-        return res
-          .status(404)
-          .json({ mensaje: "Control de vacaciones no encontrado" });
-      }
+    const [rows] = await pool.execute(
+      `SELECT cv.dias_correspondientes, cv.dias_acumulados, cv.dias_usados, e.estatus
+       FROM control_vacaciones cv
+       JOIN empleados e ON e.id = cv.empleado_id
+       WHERE cv.id = ?`,
+      [id],
+    );
 
-      // Bloquear edición si el empleado está inactivo
-      if (control.estatus === "inactivo") {
-        return res.status(400).json({
-          mensaje:
-            "No se pueden editar los días acumulados de un empleado inactivo",
-        });
-      }
+    if (rows.length === 0) {
+      return res
+        .status(404)
+        .json({ mensaje: "Control de vacaciones no encontrado" });
+    }
 
-      const restantes =
-        control.dias_correspondientes +
-        Number(dias_acumulados) -
-        control.dias_usados;
+    const control = rows[0];
 
-      if (restantes < 0) {
-        return res.status(400).json({
-          mensaje:
-            "No se pueden reducir los días acumulados porque ya existen vacaciones registradas que utilizan esos días",
-        });
-      }
+    if (control.estatus === "inactivo") {
+      return res.status(400).json({
+        mensaje:
+          "No se pueden editar los días acumulados de un empleado inactivo",
+      });
+    }
 
-      db.run(
-        `UPDATE control_vacaciones SET dias_acumulados = ? WHERE id = ?`,
-        [Number(dias_acumulados), id],
-        (err2) => {
-          if (err2) return res.status(500).json({ error: err2.message });
+    const restantes =
+      control.dias_correspondientes +
+      Number(dias_acumulados) -
+      control.dias_usados;
 
-          res.json({
-            mensaje: "Días acumulados actualizados correctamente",
-            dias_acumulados: Number(dias_acumulados),
-            dias_restantes: restantes,
-          });
-        },
-      );
-    },
-  );
+    if (restantes < 0) {
+      return res.status(400).json({
+        mensaje:
+          "No se pueden reducir los días acumulados porque ya existen vacaciones registradas que utilizan esos días",
+      });
+    }
+
+    await pool.execute(
+      `UPDATE control_vacaciones SET dias_acumulados = ? WHERE id = ?`,
+      [Number(dias_acumulados), id],
+    );
+
+    res.json({
+      mensaje: "Días acumulados actualizados correctamente",
+      dias_acumulados: Number(dias_acumulados),
+      dias_restantes: restantes,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // ======================================
 // HISTORIAL POR EMPLEADO
 // ======================================
 
-exports.obtenerHistorialPorEmpleado = (req, res) => {
+exports.obtenerHistorialPorEmpleado = async (req, res) => {
   const { id } = req.params;
 
-  db.get(`SELECT id FROM empleados WHERE id = ?`, [id], (err, empleado) => {
-    if (err) return res.status(500).json({ error: err.message });
+  try {
+    const pool = await db;
 
-    if (!empleado) {
+    const [empleadoRows] = await pool.execute(
+      `SELECT id FROM empleados WHERE id = ?`,
+      [id],
+    );
+
+    if (empleadoRows.length === 0) {
       return res.status(404).json({ mensaje: "Empleado no encontrado" });
     }
 
-    const query = `
-      SELECT id, fecha_inicio, fecha_fin, dias_tomados, comentario
-      FROM vacaciones
-      WHERE empleado_id = ?
-      ORDER BY fecha_inicio DESC
-    `;
+    const [rows] = await pool.execute(
+      `SELECT id, fecha_inicio, fecha_fin, dias_tomados, comentario
+       FROM vacaciones
+       WHERE empleado_id = ?
+       ORDER BY fecha_inicio DESC`,
+      [id],
+    );
 
-    db.all(query, [id], (err2, rows) => {
-      if (err2) return res.status(500).json({ error: err2.message });
-      res.json(rows);
-    });
-  });
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };

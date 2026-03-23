@@ -1,8 +1,3 @@
-/*
-  Controlador para vacaciones
-  Gestiona el ciclo completo: historial, registro, edición y eliminación
-*/
-
 const db = require("../db");
 const { calcularDias } = require("../utils/fechas.utils");
 
@@ -10,7 +5,7 @@ const { calcularDias } = require("../utils/fechas.utils");
 // OBTENER HISTORIAL DE VACACIONES
 // ======================================
 
-exports.obtenerHistorialVacaciones = (req, res) => {
+exports.obtenerHistorialVacaciones = async (req, res) => {
   const query = `
     SELECT 
       v.id,
@@ -26,23 +21,21 @@ exports.obtenerHistorialVacaciones = (req, res) => {
     ORDER BY v.fecha_inicio DESC
   `;
 
-  db.all(query, [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-
+  try {
+    const pool = await db;
+    const [rows] = await pool.execute(query);
     res.json(rows);
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // ======================================
 // REGISTRAR VACACIONES
 // ======================================
 
-exports.registrarVacaciones = (req, res) => {
+exports.registrarVacaciones = async (req, res) => {
   const { empleado_id, fecha_inicio, fecha_fin, comentario } = req.body;
-
-  // =============================
-  // VALIDACIONES
-  // =============================
 
   if (!empleado_id || !fecha_inicio || !fecha_fin) {
     return res.status(400).json({
@@ -56,123 +49,103 @@ exports.registrarVacaciones = (req, res) => {
     });
   }
 
-  // FIX: Prohibir vacaciones que crucen año
-  if (new Date(fecha_inicio).getFullYear() !== new Date(fecha_fin).getFullYear()) {
+  if (
+    new Date(fecha_inicio).getFullYear() !== new Date(fecha_fin).getFullYear()
+  ) {
     return res.status(400).json({
-      mensaje: "Las vacaciones no pueden cruzar de año. Registra dos periodos separados",
+      mensaje:
+        "Las vacaciones no pueden cruzar de año. Registra dos periodos separados",
     });
   }
 
   const dias = calcularDias(fecha_inicio, fecha_fin);
-
-  // FIX: Usar el año de fecha_inicio en lugar del año actual del servidor
   const anioActual = new Date(fecha_inicio).getFullYear();
 
-  // =============================
-  // VERIFICAR CONTROL Y ESTATUS
-  // =============================
+  try {
+    const pool = await db;
 
-  db.get(
-    `SELECT cv.*, e.estatus
-     FROM control_vacaciones cv
-     JOIN empleados e ON e.id = cv.empleado_id
-     WHERE cv.empleado_id = ? AND cv.anio = ?`,
-    [empleado_id, anioActual],
-    (err, control) => {
-      if (err) return res.status(500).json({ error: err.message });
+    // CONTROL
+    const [controlRows] = await pool.execute(
+      `SELECT cv.*, e.estatus
+       FROM control_vacaciones cv
+       JOIN empleados e ON e.id = cv.empleado_id
+       WHERE cv.empleado_id = ? AND cv.anio = ?`,
+      [empleado_id, anioActual],
+    );
 
-      if (!control) {
-        return res.status(404).json({
-          mensaje: "No existe control de vacaciones para este empleado",
-        });
-      }
-
-      if (control.estatus === "inactivo") {
-        return res.status(400).json({
-          mensaje: "No se pueden registrar vacaciones para empleados inactivos",
-        });
-      }
-
-      const disponibles =
-        control.dias_correspondientes +
-        control.dias_acumulados -
-        control.dias_usados;
-
-      if (disponibles < dias) {
-        return res.status(400).json({
-          mensaje: `No tiene suficientes días disponibles. Disponibles: ${disponibles}, solicitados: ${dias}`,
-        });
-      }
-
-      // =============================
-      // VALIDAR TRASLAPE
-      // =============================
-
-      db.get(
-        `SELECT id FROM vacaciones
-         WHERE empleado_id = ?
-         AND fecha_inicio <= ?
-         AND fecha_fin >= ?`,
-        [empleado_id, fecha_fin, fecha_inicio],
-        (errOverlap, overlap) => {
-          if (errOverlap) return res.status(500).json({ error: errOverlap.message });
-
-          if (overlap) {
-            return res.status(400).json({
-              mensaje: "Ya existen vacaciones registradas en ese periodo",
-            });
-          }
-
-          // =============================
-          // INSERTAR VACACIONES
-          // =============================
-
-          db.run(
-            `INSERT INTO vacaciones
-             (empleado_id, fecha_inicio, fecha_fin, dias_tomados, comentario)
-             VALUES (?, ?, ?, ?, ?)`,
-            [empleado_id, fecha_inicio, fecha_fin, dias, comentario],
-            function (err2) {
-              if (err2) return res.status(500).json({ error: err2.message });
-
-              // =============================
-              // ACTUALIZAR DÍAS USADOS
-              // =============================
-
-              db.run(
-                `UPDATE control_vacaciones
-                 SET dias_usados = dias_usados + ?
-                 WHERE id = ?`,
-                [dias, control.id],
-                (err3) => {
-                  if (err3) return res.status(500).json({ error: err3.message });
-
-                  res.json({
-                    mensaje: "Vacaciones registradas correctamente",
-                    dias_tomados: dias,
-                    dias_restantes: disponibles - dias,
-                  });
-                }
-              );
-            }
-          );
-        }
-      );
+    if (controlRows.length === 0) {
+      return res.status(404).json({
+        mensaje: "No existe control de vacaciones para este empleado",
+      });
     }
-  );
+
+    const control = controlRows[0];
+
+    if (control.estatus === "inactivo") {
+      return res.status(400).json({
+        mensaje: "No se pueden registrar vacaciones para empleados inactivos",
+      });
+    }
+
+    const disponibles =
+      control.dias_correspondientes +
+      control.dias_acumulados -
+      control.dias_usados;
+
+    if (disponibles < dias) {
+      return res.status(400).json({
+        mensaje: `No tiene suficientes días disponibles. Disponibles: ${disponibles}, solicitados: ${dias}`,
+      });
+    }
+
+    // TRASLAPE
+    const [overlapRows] = await pool.execute(
+      `SELECT id FROM vacaciones
+       WHERE empleado_id = ?
+       AND fecha_inicio <= ?
+       AND fecha_fin >= ?`,
+      [empleado_id, fecha_fin, fecha_inicio],
+    );
+
+    if (overlapRows.length > 0) {
+      return res.status(400).json({
+        mensaje: "Ya existen vacaciones registradas en ese periodo",
+      });
+    }
+
+    // INSERT
+    await pool.execute(
+      `INSERT INTO vacaciones
+       (empleado_id, fecha_inicio, fecha_fin, dias_tomados, comentario)
+       VALUES (?, ?, ?, ?, ?)`,
+      [empleado_id, fecha_inicio, fecha_fin, dias, comentario],
+    );
+
+    // UPDATE CONTROL
+    await pool.execute(
+      `UPDATE control_vacaciones
+       SET dias_usados = dias_usados + ?
+       WHERE id = ?`,
+      [dias, control.id],
+    );
+
+    res.json({
+      mensaje: "Vacaciones registradas correctamente",
+      dias_tomados: dias,
+      dias_restantes: disponibles - dias,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // ======================================
 // EDITAR VACACIONES
 // ======================================
 
-exports.editarVacaciones = (req, res) => {
+exports.editarVacaciones = async (req, res) => {
   const { id } = req.params;
   const { fecha_inicio, fecha_fin, comentario } = req.body;
-
-  // =============================
-  // VALIDACIONES
-  // =============================
 
   if (!fecha_inicio || !fecha_fin) {
     return res.status(400).json({
@@ -186,155 +159,128 @@ exports.editarVacaciones = (req, res) => {
     });
   }
 
-  // FIX: Prohibir vacaciones que crucen año
-  if (new Date(fecha_inicio).getFullYear() !== new Date(fecha_fin).getFullYear()) {
+  if (
+    new Date(fecha_inicio).getFullYear() !== new Date(fecha_fin).getFullYear()
+  ) {
     return res.status(400).json({
-      mensaje: "Las vacaciones no pueden cruzar de año. Registra dos periodos separados",
+      mensaje: "Las vacaciones no pueden cruzar de año",
     });
   }
 
   const diasNuevos = calcularDias(fecha_inicio, fecha_fin);
   const hoy = new Date().toISOString().split("T")[0];
 
-  // =============================
-  // BUSCAR VACACIÓN
-  // =============================
+  try {
+    const pool = await db;
 
-  db.get(`SELECT * FROM vacaciones WHERE id = ?`, [id], (err, vac) => {
-    if (err) return res.status(500).json({ error: err.message });
+    const [vacRows] = await pool.execute(
+      `SELECT * FROM vacaciones WHERE id = ?`,
+      [id],
+    );
 
-    if (!vac) {
+    if (vacRows.length === 0) {
       return res.status(404).json({ mensaje: "Vacación no encontrada" });
     }
 
-    // =============================
-    // VACACIONES YA PASADAS → SOLO COMENTARIO
-    // =============================
+    const vac = vacRows[0];
 
     if (vac.fecha_fin < hoy) {
-      db.run(
-        `UPDATE vacaciones SET comentario = ? WHERE id = ?`,
-        [comentario, id],
-        (errUpdate) => {
-          if (errUpdate) return res.status(500).json({ error: errUpdate.message });
+      await pool.execute(`UPDATE vacaciones SET comentario = ? WHERE id = ?`, [
+        comentario,
+        id,
+      ]);
 
-          return res.json({
-            mensaje: "Las vacaciones ya ocurrieron. Solo se actualizó el comentario",
-          });
-        }
-      );
-
-      return;
+      return res.json({
+        mensaje:
+          "Las vacaciones ya ocurrieron. Solo se actualizó el comentario",
+      });
     }
 
-    // FIX: Usar el año de fecha_inicio en lugar del año actual del servidor
     const anioActual = new Date(fecha_inicio).getFullYear();
 
-    // =============================
-    // VERIFICAR CONTROL
-    // =============================
-
-    db.get(
+    const [controlRows] = await pool.execute(
       `SELECT * FROM control_vacaciones WHERE empleado_id = ? AND anio = ?`,
       [vac.empleado_id, anioActual],
-      (err2, control) => {
-        if (err2) return res.status(500).json({ error: err2.message });
-
-        if (!control) {
-          return res.status(404).json({
-            mensaje: "Las vacaciones no se pueden editar para ese año",
-          });
-        }
-
-        const disponibles =
-          control.dias_correspondientes +
-          control.dias_acumulados -
-          control.dias_usados +
-          vac.dias_tomados; // Se devuelven los días actuales al pool
-
-        if (disponibles < diasNuevos) {
-          return res.status(400).json({
-            mensaje: `No hay suficientes días. Disponibles: ${disponibles}, solicitados: ${diasNuevos}`,
-          });
-        }
-
-        // =============================
-        // VALIDAR TRASLAPE AL EDITAR
-        // =============================
-
-        db.get(
-          `SELECT id FROM vacaciones
-           WHERE empleado_id = ?
-           AND id != ?
-           AND fecha_inicio <= ?
-           AND fecha_fin >= ?`,
-          [vac.empleado_id, id, fecha_fin, fecha_inicio],
-          (errOverlap, overlap) => {
-            if (errOverlap) return res.status(500).json({ error: errOverlap.message });
-
-            if (overlap) {
-              return res.status(400).json({
-                mensaje: "Ya existen vacaciones registradas en ese periodo",
-              });
-            }
-
-            // =============================
-            // ACTUALIZAR VACACIONES
-            // =============================
-
-            db.run(
-              `UPDATE vacaciones
-               SET fecha_inicio = ?, fecha_fin = ?, dias_tomados = ?, comentario = ?
-               WHERE id = ?`,
-              [fecha_inicio, fecha_fin, diasNuevos, comentario, id],
-              (err3) => {
-                if (err3) return res.status(500).json({ error: err3.message });
-
-                // =============================
-                // ACTUALIZAR DÍAS USADOS
-                // =============================
-
-                db.run(
-                  `UPDATE control_vacaciones
-                   SET dias_usados = dias_usados - ? + ?
-                   WHERE id = ?`,
-                  [vac.dias_tomados, diasNuevos, control.id],
-                  (err4) => {
-                    if (err4) return res.status(500).json({ error: err4.message });
-
-                    res.json({
-                      mensaje: "Vacaciones actualizadas correctamente",
-                    });
-                  }
-                );
-              }
-            );
-          }
-        );
-      }
     );
-  });
+
+    if (controlRows.length === 0) {
+      return res.status(404).json({
+        mensaje: "Las vacaciones no se pueden editar para ese año",
+      });
+    }
+
+    const control = controlRows[0];
+
+    const disponibles =
+      control.dias_correspondientes +
+      control.dias_acumulados -
+      control.dias_usados +
+      vac.dias_tomados;
+
+    if (disponibles < diasNuevos) {
+      return res.status(400).json({
+        mensaje: `No hay suficientes días. Disponibles: ${disponibles}, solicitados: ${diasNuevos}`,
+      });
+    }
+
+    const [overlapRows] = await pool.execute(
+      `SELECT id FROM vacaciones
+       WHERE empleado_id = ?
+       AND id != ?
+       AND fecha_inicio <= ?
+       AND fecha_fin >= ?`,
+      [vac.empleado_id, id, fecha_fin, fecha_inicio],
+    );
+
+    if (overlapRows.length > 0) {
+      return res.status(400).json({
+        mensaje: "Ya existen vacaciones registradas en ese periodo",
+      });
+    }
+
+    await pool.execute(
+      `UPDATE vacaciones
+       SET fecha_inicio = ?, fecha_fin = ?, dias_tomados = ?, comentario = ?
+       WHERE id = ?`,
+      [fecha_inicio, fecha_fin, diasNuevos, comentario, id],
+    );
+
+    await pool.execute(
+      `UPDATE control_vacaciones
+       SET dias_usados = dias_usados - ? + ?
+       WHERE id = ?`,
+      [vac.dias_tomados, diasNuevos, control.id],
+    );
+
+    res.json({
+      mensaje: "Vacaciones actualizadas correctamente",
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 // ======================================
 // ELIMINAR VACACIONES
 // ======================================
 
-exports.eliminarVacaciones = (req, res) => {
+exports.eliminarVacaciones = async (req, res) => {
   const { id } = req.params;
-
   const hoy = new Date().toISOString().split("T")[0];
 
-  // =============================
-  // BUSCAR VACACIÓN
-  // =============================
+  try {
+    const pool = await db;
 
-  db.get(`SELECT * FROM vacaciones WHERE id = ?`, [id], (err, vac) => {
-    if (err) return res.status(500).json({ error: err.message });
+    const [vacRows] = await pool.execute(
+      `SELECT * FROM vacaciones WHERE id = ?`,
+      [id],
+    );
 
-    if (!vac) {
+    if (vacRows.length === 0) {
       return res.status(404).json({ mensaje: "Vacación no encontrada" });
     }
+
+    const vac = vacRows[0];
 
     if (vac.fecha_inicio <= hoy) {
       return res.status(400).json({
@@ -342,45 +288,32 @@ exports.eliminarVacaciones = (req, res) => {
       });
     }
 
-    // FIX: Usar el año de fecha_inicio de la vacación
     const anioVacacion = new Date(vac.fecha_inicio).getFullYear();
 
-    // =============================
-    // VERIFICAR CONTROL
-    // =============================
-
-    db.get(
+    const [controlRows] = await pool.execute(
       `SELECT * FROM control_vacaciones WHERE empleado_id = ? AND anio = ?`,
       [vac.empleado_id, anioVacacion],
-      (err2, control) => {
-        if (err2) return res.status(500).json({ error: err2.message });
-
-        if (!control) {
-          return res.status(404).json({
-            mensaje: "No existe control de vacaciones para este año",
-          });
-        }
-
-        // =============================
-        // ELIMINAR Y DEVOLVER DÍAS
-        // =============================
-
-        db.run(`DELETE FROM vacaciones WHERE id = ?`, [id], (err3) => {
-          if (err3) return res.status(500).json({ error: err3.message });
-
-          db.run(
-            `UPDATE control_vacaciones
-             SET dias_usados = dias_usados - ?
-             WHERE id = ?`,
-            [vac.dias_tomados, control.id],
-            (err4) => {
-              if (err4) return res.status(500).json({ error: err4.message });
-
-              res.json({ mensaje: "Vacaciones eliminadas correctamente" });
-            }
-          );
-        });
-      }
     );
-  });
+
+    if (controlRows.length === 0) {
+      return res.status(404).json({
+        mensaje: "No existe control de vacaciones para este año",
+      });
+    }
+
+    const control = controlRows[0];
+
+    await pool.execute(`DELETE FROM vacaciones WHERE id = ?`, [id]);
+
+    await pool.execute(
+      `UPDATE control_vacaciones
+       SET dias_usados = dias_usados - ?
+       WHERE id = ?`,
+      [vac.dias_tomados, control.id],
+    );
+
+    res.json({ mensaje: "Vacaciones eliminadas correctamente" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };

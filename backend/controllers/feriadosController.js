@@ -1,9 +1,3 @@
-/*
-  Controlador para feriados
-  Lee y escribe sobre data/feriados.json
-  No usa base de datos
-*/
-
 const fs = require("fs");
 const path = require("path");
 const db = require("../db");
@@ -43,10 +37,6 @@ exports.obtenerFeriados = (req, res) => {
 exports.agregarFeriado = (req, res) => {
   const { fecha, descripcion } = req.body;
 
-  // =============================
-  // VALIDACIONES
-  // =============================
-
   if (!fecha || !descripcion) {
     return res.status(400).json({
       mensaje: "fecha y descripcion son obligatorios",
@@ -63,7 +53,6 @@ exports.agregarFeriado = (req, res) => {
   try {
     const feriados = leerFeriados();
 
-    // Verificar duplicado
     const existe = feriados.find((f) => f.fecha === fecha);
     if (existe) {
       return res.status(400).json({
@@ -71,7 +60,6 @@ exports.agregarFeriado = (req, res) => {
       });
     }
 
-    // Generar nuevo id
     const nuevoId =
       feriados.length > 0 ? Math.max(...feriados.map((f) => f.id)) + 1 : 1;
 
@@ -82,8 +70,6 @@ exports.agregarFeriado = (req, res) => {
     };
 
     feriados.push(nuevo);
-
-    // Ordenar por fecha antes de guardar
     feriados.sort((a, b) => (a.fecha > b.fecha ? 1 : -1));
 
     guardarFeriados(feriados);
@@ -101,7 +87,7 @@ exports.agregarFeriado = (req, res) => {
 // ELIMINAR FERIADO
 // ======================================
 
-exports.eliminarFeriado = (req, res) => {
+exports.eliminarFeriado = async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -115,39 +101,35 @@ exports.eliminarFeriado = (req, res) => {
 
     const feriado = feriados[index];
 
-    // =============================
+    // ======================================
     // VALIDAR QUE NO HAY VACACIONES
-    // QUE CAIGAN EN ESTE FERIADO
-    // =============================
+    // ======================================
 
-    db.get(
+    const pool = await db;
+
+    const [rows] = await pool.execute(
       `SELECT v.id, e.nombre
        FROM vacaciones v
        JOIN empleados e ON e.id = v.empleado_id
        WHERE v.fecha_inicio <= ? AND v.fecha_fin >= ?
        LIMIT 1`,
       [feriado.fecha, feriado.fecha],
-      (err, row) => {
-        if (err) {
-          return res.status(500).json({ error: err.message });
-        }
-
-        if (row) {
-          return res.status(400).json({
-            mensaje: `No se puede eliminar este feriado porque ${row.nombre} tiene vacaciones registradas en esa fecha. Elimina o edita esas vacaciones primero.`,
-          });
-        }
-
-        // =============================
-        // SIN CONFLICTOS — ELIMINAR
-        // =============================
-
-        feriados.splice(index, 1);
-        guardarFeriados(feriados);
-
-        res.json({ mensaje: "Feriado eliminado correctamente" });
-      },
     );
+
+    if (rows.length > 0) {
+      return res.status(400).json({
+        mensaje: `No se puede eliminar este feriado porque ${rows[0].nombre} tiene vacaciones registradas en esa fecha. Elimina o edita esas vacaciones primero.`,
+      });
+    }
+
+    // ======================================
+    // SIN CONFLICTOS — ELIMINAR
+    // ======================================
+
+    feriados.splice(index, 1);
+    guardarFeriados(feriados);
+
+    res.json({ mensaje: "Feriado eliminado correctamente" });
   } catch (err) {
     res.status(500).json({ error: "Error al eliminar el feriado" });
   }
