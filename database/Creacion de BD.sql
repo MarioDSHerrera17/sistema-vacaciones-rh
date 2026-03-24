@@ -45,3 +45,7 @@ CREATE TABLE IF NOT EXISTS vacaciones (
     REFERENCES empleados(id)
     ON DELETE CASCADE
 );
+
+Select * from empleados;
+Select * from control_vacaciones;
+Select * from vacaciones;

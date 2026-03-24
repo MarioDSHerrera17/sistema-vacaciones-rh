@@ -1,7 +1,8 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 
-const initDB = require("./initDatabase"); // ✅ importar
+const initDB = require("./initDatabase");
 require("./jobs/renovarVacaciones.job.js");
 
 initDB();
@@ -15,6 +16,7 @@ const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 
+// CORS
 app.use(
   cors({
     origin: "*",
@@ -25,6 +27,9 @@ app.use(
 
 app.use(express.json());
 
+// =======================
+// RUTAS API
+// =======================
 app.use("/api", empleadosRoutes);
 app.use("/api/vacaciones", vacacionesRoutes);
 app.use("/api/historial", historialRoutes);
@@ -32,7 +37,19 @@ app.use("/api/feriados", feriadosRoutes);
 app.use("/api/backup", backupRoutes);
 app.use("/api/auth", authRoutes);
 
-const PORT = process.env.PORT || 3000;
+// =======================
+// FRONTEND (PRODUCCIÓN)
+// =======================
+app.use(express.static(path.join(__dirname, "../frontend/dist")));
+
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
+});
+
+// =======================
+// SERVIDOR (AL FINAL)
+// =======================
+const PORT = process.env.PORT || 80;
 const HOST = "0.0.0.0";
 
 app.listen(PORT, HOST, () => {
